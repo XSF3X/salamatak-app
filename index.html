@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V19 - المشخص الذكي)</title>
+    <title>نظام سلامتك (V20 - الإصلاح النهائي)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -35,14 +35,14 @@
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري المعالجة...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
             
             <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">
-                جاري فحص الاتصال بـ Supabase...
+                جاري تهيئة النظام...
             </div>
 
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
@@ -173,65 +173,53 @@
 
     <script>
         // ==========================================
-        // 🔴 هام جداً: استبدل الرابط والمفتاح هنا
+        // 🔴🔴 هام: استبدل الروابط هنا بالخاصة بك
         // ==========================================
-        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
+        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; // استبدل هنا
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; // استبدل هنا
         // ==========================================
-
-        // تهيئة العميل
-        let supabase;
-        try {
-            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (e) {
-            console.error("خطأ في تهيئة Supabase:", e);
-        }
 
         // المتغيرات
+        let db = null; // سيتم تعريفه لاحقاً لتجنب الأخطاء
         let currentUser = null; let currentRole = 'user'; let employeeData = [];
         let currentCardValue = ''; let currentCommission = 0; 
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- فاحص الاتصال الذكي ---
+        // --- فاحص الاتصال ---
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
             const loginBtn = document.getElementById('loginBtn');
             const errorMsg = document.getElementById('errorMsg');
 
             if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) {
-                statusDiv.textContent = "❌ خطأ: لم يتم وضع رابط Supabase في الكود";
+                statusDiv.textContent = "❌ خطأ: لم يتم وضع روابط Supabase في الكود";
                 statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-red-500";
                 return;
             }
 
             try {
-                // محاولة الاتصال البسيط بقاعدة البيانات
-                const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                // التصحيح الجذري هنا: استخدام supabase.createClient بشكل صحيح
+                db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                 
-                if (error) {
-                    throw error;
-                } else {
-                    statusDiv.innerHTML = "✅ تم الاتصال بقاعدة البيانات بنجاح";
-                    statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-green-400";
-                    loginBtn.disabled = false;
-                    loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
-                    loginBtn.classList.replace('text-gray-400', 'text-white');
-                    loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500');
-                    loginBtn.textContent = "دخول 🔐";
-                }
+                // اختبار الاتصال بطلب بسيط
+                const { error } = await db.from('users').select('count', { count: 'exact', head: true });
+                
+                if (error) throw error;
+
+                statusDiv.innerHTML = "✅ تم الاتصال بنجاح";
+                statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-green-400";
+                loginBtn.disabled = false;
+                loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
+                loginBtn.classList.replace('text-gray-400', 'text-white');
+                loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500');
+                loginBtn.textContent = "دخول 🔐";
+
             } catch (err) {
                 statusDiv.textContent = "❌ فشل الاتصال";
                 statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-red-500";
                 errorMsg.classList.remove('hidden');
-                
-                if(err.code === 'PGRST301' || err.message.includes('404')) {
-                    errorMsg.textContent = "الجدول 'users' غير موجود! هل أنشأته؟";
-                } else if (err.message.includes('API key')) {
-                    errorMsg.textContent = "مفتاح API غير صحيح!";
-                } else {
-                    errorMsg.textContent = "خطأ: " + err.message;
-                }
+                errorMsg.textContent = "خطأ: " + err.message;
             }
         }
 
@@ -242,7 +230,7 @@
             if(!name || !pin) return alert("أدخل البيانات");
 
             showLoader(true);
-            const { data, error } = await supabase.from('users').select('*').eq('username', name).eq('pin', pin).single();
+            const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).single();
             showLoader(false);
 
             if(error || !data) {
@@ -259,23 +247,13 @@
         }
 
         // --- 2. إدارة المشرف ---
-        async function openAdminPanel() {
-            document.getElementById('adminPanelModal').classList.remove('hidden');
-            loadAllUsers();
-        }
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
         async function loadAllUsers() {
-            const { data } = await supabase.from('users').select('*').order('id');
+            const { data } = await db.from('users').select('*').order('id');
             if(data) {
-                const tbody = document.getElementById('usersTableBody');
-                tbody.innerHTML = '';
+                const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = '';
                 data.forEach(user => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-gray-800">
-                            <td class="p-3 font-bold">${user.username}</td>
-                            <td class="p-3 text-yellow-400 font-mono">${user.pin}</td>
-                            <td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td>
-                            <td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
-                        </tr>`;
+                    tbody.innerHTML += `<tr class="hover:bg-gray-800"><td class="p-3 font-bold">${user.username}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`;
                 });
             }
         }
@@ -284,15 +262,15 @@
             const pin = document.getElementById('newPin').value.trim();
             const role = document.getElementById('newRole').value;
             if(!name || !pin) return alert("ناقصة");
-            const { error } = await supabase.from('users').insert([{ username: name, pin: pin, role: role }]);
+            const { error } = await db.from('users').insert([{ username: name, pin: pin, role: role }]);
             if(error) alert(error.message); else { loadAllUsers(); alert("تم!"); }
         }
-        async function deleteUser(id) { if(confirm("حذف؟")) { await supabase.from('users').delete().eq('id', id); loadAllUsers(); } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
 
         // --- 3. النظام ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            const { data } = await supabase.from('invoices').select('*').eq('employee_name', currentUser).order('created_at', { ascending: false });
+            const { data } = await db.from('invoices').select('*').eq('employee_name', currentUser).order('created_at', { ascending: false });
             showLoader(false);
             employeeData = data || [];
             renderTable();
@@ -302,11 +280,11 @@
             if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة");
             const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
             showLoader(true);
-            const { data, error } = await supabase.from('invoices').insert([entry]).select();
+            const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
             if(!error && data) { employeeData.unshift(data[0]); renderTable(); clearInputs(); } else alert("فشل");
         }
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await supabase.from('invoices').delete().eq('id', id); employeeData = employeeData.filter(i=>i.id!==id); renderTable(); } }
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await db.from('invoices').delete().eq('id', id); employeeData = employeeData.filter(i=>i.id!==id); renderTable(); } }
 
         // --- أدوات ---
         function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
