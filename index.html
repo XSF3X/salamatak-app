@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V21 - المستقر)</title>
+    <title>نظام سلامتك (V23 - الحفظ المؤكد)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -11,9 +11,7 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: white; }
@@ -31,35 +29,32 @@
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
-<body class="p-4 md:p-6" onload="initSystem()">
+<body class="p-4 md:p-6" onload="checkConnection()">
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري العمل...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">جاري التهيئة...</div>
+            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">جاري الاتصال...</div>
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
-            <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            
-            <input type="text" id="loginName" placeholder="اسم المستخدم (حساس للأحرف)" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
-            
+            <h2 class="text-3xl font-extrabold text-white mb-2">دخول النظام</h2>
+            <input type="text" id="loginName" placeholder="اسم المستخدم" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
             <div class="relative mb-6">
                 <input type="password" id="loginPin" placeholder="الرقم السري" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest">
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
-            
             <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
-            <div id="errorMsg" class="mt-4 text-red-400 text-sm font-bold hidden bg-red-900/30 p-2 rounded"></div>
+            <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
     </div>
 
     <div id="adminPanelModal" class="fixed inset-0 flex items-center justify-center hidden modal">
         <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-2 border-red-600 h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
-                <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
+                <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> الإدارة</h2>
                 <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
             </div>
             <div class="bg-gray-700 p-4 rounded-xl mb-6">
@@ -73,13 +68,13 @@
                 </div>
                 <button onclick="addNewUser()" class="w-full mt-3 bg-green-600 hover:bg-green-500 text-white py-2 rounded font-bold">إضافة</button>
             </div>
-            <div class="overflow-y-auto flex-1"><table class="w-full text-center text-sm text-gray-300"><thead class="bg-gray-900 text-gray-400 sticky top-0"><tr><th class="p-3">الاسم</th><th class="p-3">PIN</th><th class="p-3">الصلاحية</th><th class="p-3">حذف</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody></table></div>
+            <div class="overflow-y-auto flex-1"><table class="w-full text-center text-sm text-gray-300"><thead class="bg-gray-900 text-gray-400 sticky top-0"><tr><th class="p-3">الاسم</th><th class="p-3">PIN</th><th class="p-3">نوع</th><th class="p-3">حذف</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody></table></div>
         </div>
     </div>
 
     <div id="cardModal" class="fixed inset-0 flex items-center justify-center hidden modal">
         <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-t-4 border-orange-600">
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">حدد الفئة</h2>
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="card-option bg-white p-6 rounded-xl border-l-8 border-purple-600" onclick="selectCardType('100')"><span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span><p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p></div>
                 <div class="card-option bg-white p-6 rounded-xl border-l-8 border-teal-600" onclick="selectCardType('200')"><span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span><p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p></div>
@@ -95,7 +90,7 @@
                 <div><p class="text-xs text-gray-400 uppercase">مرحباً</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
             </div>
             <div class="flex items-center gap-2">
-                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i> إدارة</button>
+                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i></button>
                  <span class="hidden md:inline-block text-xs bg-gray-700 px-3 py-1.5 rounded text-gray-300 font-mono" id="currentCategoryBadge">--</span>
                  <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
@@ -129,15 +124,15 @@
                     <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">التاريخ</label><input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm"></div>
                 </div>
-                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ في ملفي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
+                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ سحابي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
             </div>
         </div>
 
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mt-6">
             <div class="flex justify-between items-center bg-gray-100 p-4 border-b">
                 <div class="flex gap-2">
-                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">تحميل ملفي 📥</button>
-                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">تغيير الفئة 🔄</button>
+                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">تنزيل Excel 📥</button>
+                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
                     <button onclick="fetchDataFromCloud()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
                 </div>
                 <div class="text-right"><span class="block text-xs text-gray-500">رصيدك</span><span class="text-green-700 font-extrabold text-xl" id="totalProfitDisplay">0 ريال</span></div>
@@ -168,145 +163,146 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- تهيئة النظام ---
-        function initSystem() {
-            // استخدام الطريقة الصحيحة للتعريف (Global Scope)
-            try {
-                if (typeof supabase !== 'undefined') {
-                    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    checkConnection();
-                } else {
-                    throw new Error("المكتبة لم يتم تحميلها");
-                }
-            } catch (err) {
-                showError("خطأ في تحميل مكتبة Supabase: " + err.message);
-            }
-        }
-
+        // --- Connection Check ---
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
             const loginBtn = document.getElementById('loginBtn');
 
             if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) {
-                showError("يجب وضع روابط قاعدة البيانات في الكود!");
-                return;
+                showError("⚠️ خطأ: روابط Supabase مفقودة!"); return;
             }
 
             try {
-                const { error } = await db.from('users').select('count', { count: 'exact', head: true });
+                db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                // اختبار الاتصال بجدول المستخدمين
+                const { count, error } = await db.from('users').select('*', { count: 'exact', head: true });
                 if (error) throw error;
 
-                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل بقاعدة البيانات</span>";
+                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل (جاهز للدخول)</span>";
                 loginBtn.disabled = false;
                 loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
                 loginBtn.classList.replace('text-gray-400', 'text-white');
                 loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500');
                 loginBtn.textContent = "دخول 🔐";
             } catch (err) {
-                showError("فشل الاتصال: " + err.message);
+                showError("فشل الاتصال: " + err.message + " (تأكد من تعطيل RLS)");
             }
         }
 
-        function showError(msg) {
-            const el = document.getElementById('errorMsg');
-            el.textContent = msg;
-            el.classList.remove('hidden');
-        }
-
-        function togglePin() {
-            const pinInput = document.getElementById('loginPin');
-            const icon = document.getElementById('eyeIcon');
-            if (pinInput.type === 'password') {
-                pinInput.type = 'text';
-                icon.classList.replace('fa-eye', 'fa-eye-slash');
-            } else {
-                pinInput.type = 'password';
-                icon.classList.replace('fa-eye-slash', 'fa-eye');
-            }
-        }
-
-        // --- 1. الدخول ---
+        // --- 1. Login ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim();
             const pin = document.getElementById('loginPin').value.trim();
-            if(!name || !pin) return alert("أدخل البيانات");
+            if(!name || !pin) return showError("أدخل الاسم والرقم السري");
 
             showLoader(true);
-            // البحث الدقيق (Trimmed)
-            const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).single();
+            const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
             showLoader(false);
 
-            if(error || !data) {
-                showError("خطأ: الاسم أو الرقم السري غير صحيح. تأكد من حالة الأحرف (Admin vs admin)");
+            if (error) {
+                showError("خطأ قاعدة بيانات: " + error.message);
+            } else if (!data) {
+                showError("❌ خطأ: الاسم أو الرقم السري غير صحيح");
             } else {
                 currentUser = data.username;
                 currentRole = data.role;
-                document.getElementById('displayEmployeeName').textContent = currentUser;
-                document.getElementById('loginModal').classList.add('hidden');
-                document.getElementById('cardModal').classList.remove('hidden');
-                if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
-                await fetchDataFromCloud();
+                enterSystem();
             }
         }
 
-        // --- 2. الإدارة ---
-        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
-        async function loadAllUsers() {
-            const { data } = await db.from('users').select('*').order('id');
-            if(data) {
-                const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = '';
-                data.forEach(user => {
-                    tbody.innerHTML += `<tr class="hover:bg-gray-800"><td class="p-3 font-bold">${user.username}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`;
-                });
-            }
+        function enterSystem() {
+            document.getElementById('displayEmployeeName').textContent = currentUser;
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('cardModal').classList.remove('hidden');
+            if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
+            fetchDataFromCloud();
         }
-        async function addNewUser() {
-            const name = document.getElementById('newUsername').value.trim();
-            const pin = document.getElementById('newPin').value.trim();
-            const role = document.getElementById('newRole').value;
-            if(!name || !pin) return alert("ناقصة");
-            const { error } = await db.from('users').insert([{ username: name, pin: pin, role: role }]);
-            if(error) alert(error.message); else { loadAllUsers(); alert("تم!"); }
-        }
-        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
 
-        // --- 3. النظام ---
+        // --- 2. Cloud Operations (Save/Fetch) ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            const { data } = await db.from('invoices').select('*').eq('employee_name', currentUser).order('created_at', { ascending: false });
+            // جلب البيانات الخاصة بالمستخدم الحالي فقط
+            const { data, error } = await db.from('invoices')
+                .select('*')
+                .eq('employee_name', currentUser)
+                .order('created_at', { ascending: false });
+            
             showLoader(false);
-            employeeData = data || [];
-            renderTable();
+            if(error) {
+                console.error(error);
+                alert("تعذر جلب البيانات: " + error.message);
+            } else {
+                employeeData = data || [];
+                renderTable();
+            }
         }
+
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة");
-            const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة (رقم البطاقة أو الفاتورة)");
+            
+            const entry = {
+                employee_name: currentUser, // ربط السجل بالمستخدم
+                card_no: manualCardNo,
+                patient_name: document.getElementById('pName').value,
+                file_no: document.getElementById('fileNo').value,
+                inv_no: document.getElementById('invNo').value,
+                inv_date: document.getElementById('pDate').value,
+                remark: currentCardValue,
+                profit: currentCommission
+            };
+
             showLoader(true);
             const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
-            if(!error && data) { employeeData.unshift(data[0]); renderTable(); clearInputs(); } else alert("فشل");
-        }
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await db.from('invoices').delete().eq('id', id); employeeData = employeeData.filter(i=>i.id!==id); renderTable(); } }
 
+            if(error) {
+                alert("فشل الحفظ: " + error.message);
+            } else {
+                alert("✅ تم الحفظ بنجاح!");
+                if(data) employeeData.unshift(data[0]);
+                renderTable();
+                clearInputs();
+            }
+        }
+
+        async function deleteFromCloud(id) {
+            if(!confirm("هل أنت متأكد من الحذف؟")) return;
+            showLoader(true);
+            const { error } = await db.from('invoices').delete().eq('id', id);
+            showLoader(false);
+            if(error) alert("فشل الحذف");
+            else {
+                employeeData = employeeData.filter(i => i.id !== id);
+                renderTable();
+            }
+        }
+
+        // --- Helper Functions ---
         function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
+        
         function renderTable() {
             const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0;
             employeeData.forEach((row, i) => {
                 total += parseFloat(row.profit||0);
-                tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold">${employeeData.length-i}</td><td class="p-3 font-mono font-bold text-gray-800">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700">${row.patient_name}</td><td class="p-3 font-mono text-blue-600">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold text-black">${employeeData.length-i}</td><td class="p-3 font-mono font-bold text-gray-800">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700">${row.patient_name}</td><td class="p-3 font-mono text-blue-600">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold text-black">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
             });
             document.getElementById('totalProfitDisplay').textContent = `${total} ريال`;
         }
+
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
-        function exportXLS() { 
-            if(!employeeData.length)return alert("فارغ"); 
-            const d=employeeData.map((row,i)=>({"SN":i+1,"CARD NO":row.card_no,"PATIENT NAME":row.patient_name,"FILE NO.":row.file_no,"INV. NO.":row.inv_no,"DATE":row.inv_date,"REMARK":parseInt(row.remark),"PROFIT (SAR)":row.profit}));
-            const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`); 
-        }
+        function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
+        function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
+        function exportXLS() { if(!employeeData.length)return alert("فارغ"); const d=employeeData.map((row,i)=>({"SN":i+1,"CARD NO":row.card_no,"PATIENT NAME":row.patient_name,"FILE NO.":row.file_no,"INV. NO.":row.inv_no,"DATE":row.inv_date,"REMARK":parseInt(row.remark),"PROFIT (SAR)":row.profit})); const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`); }
 
-        // --- الكاميرا ---
+        // --- Admin Functions ---
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
+        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ tbody.innerHTML+=`<tr class="hover:bg-gray-800"><td class="p-3 font-bold">${user.username}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
+        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("ناقصة"); const {error}=await db.from('users').insert([{username:name,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
+
+        // --- Camera & OCR ---
         async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert(e); } }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
