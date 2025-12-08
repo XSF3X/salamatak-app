@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V32 - الشامل)</title>
+    <title>نظام سلامتك (V33 - منع التكرار)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -164,7 +164,7 @@
         <canvas id="canvas" class="hidden"></canvas>
     </div>
 
- <script>
+   <script>
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
@@ -172,21 +172,54 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
         // ==========================================
 
-
         let db = null;
         let currentUser = null; let currentRole = 'user'; let employeeData = [];
         let currentCardValue = ''; let currentCommission = 0; 
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- ⚡ الاستيراد الذكي (V32) ⚡ ---
+        // --- ⚡ الحفظ الذكي مع منع التكرار (V33) ⚡ ---
+        async function saveEntryToCloud() {
+            const manualCardNo = document.getElementById('cardNo').value.trim();
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
+
+            showLoader(true);
+
+            // 1. التحقق من التكرار (للموظف الحالي فقط)
+            const { data: existing, error: checkError } = await db
+                .from('invoices')
+                .select('id')
+                .eq('employee_name', currentUser)
+                .eq('card_no', manualCardNo)
+                .maybeSingle();
+
+            if (existing) {
+                showLoader(false);
+                alert(`❌ خطأ: رقم البطاقة (${manualCardNo}) موجود مسبقاً في ملفك!`);
+                return; // إيقاف العملية
+            }
+
+            // 2. الحفظ إذا لم يكن مكرراً
+            const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
+            
+            const { data, error } = await db.from('invoices').insert([entry]).select();
+            showLoader(false);
+
+            if(error) alert("فشل الحفظ: " + error.message);
+            else { 
+                alert("✅ تم الحفظ!"); 
+                if(data) employeeData.push(data[0]); 
+                renderTable(); 
+                clearInputs(); 
+            }
+        }
+
+        // --- ⚡ الاستيراد الذكي مع فلترة التكرار (V33) ⚡ ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
 
-            if(!confirm("سيقوم النظام بتحليل الملف ودمج البيانات في حسابك. هل أنت متأكد؟")) {
-                input.value = ''; return;
-            }
+            if(!confirm("سيتم دمج البيانات الجديدة فقط وتجاهل المكرر. موافق؟")) { input.value = ''; return; }
 
             showLoader(true);
             const reader = new FileReader();
@@ -198,7 +231,11 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
 
-                    // Mapping Logic (نفس المنطق القوي من V31)
+                    // جلب أرقام البطاقات الموجودة حالياً للموظف لتجنب تكرارها
+                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentUser);
+                    const existingSet = new Set(existingCards.map(item => String(item.card_no).trim()));
+
+                    // Mapping Logic
                     let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     let headerRowIndex = -1;
 
@@ -222,6 +259,7 @@
 
                     const entriesToUpload = [];
                     const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 1;
+                    let duplicatesCount = 0;
 
                     for (let i = startRow; i < jsonData.length; i++) {
                         const row = jsonData[i];
@@ -229,6 +267,7 @@
 
                         let entry = { employee_name: currentUser, remark: '100', profit: 5 };
                         
+                        // استخراج البيانات (كما في V31)
                         if (headerRowIndex !== -1) {
                             if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
                             if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
@@ -243,6 +282,7 @@
                             if (colMap.profit > -1) entry.profit = row[colMap.profit];
                         } 
                         else {
+                            // Fallback Logic
                             row.forEach(cell => {
                                 let s = String(cell).trim();
                                 if(!s) return;
@@ -259,23 +299,33 @@
                             entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
                         }
 
-                        if (entry.card_no) entriesToUpload.push(entry);
+                        // 🔥 الفلترة هنا 🔥
+                        if (entry.card_no) {
+                            if (existingSet.has(entry.card_no)) {
+                                duplicatesCount++; // تخطي المكرر
+                            } else {
+                                entriesToUpload.push(entry);
+                                existingSet.add(entry.card_no); // إضافته للمجموعة لمنع تكراره داخل نفس الملف
+                            }
+                        }
                     }
 
                     if(entriesToUpload.length > 0) {
                         const { error } = await db.from('invoices').insert(entriesToUpload);
-                        if(error) alert("خطأ أثناء الدمج: " + error.message);
+                        if(error) alert("خطأ دمج: " + error.message);
                         else {
-                            alert(`✅ تم استيراد ودمج ${entriesToUpload.length} سجل بنجاح!`);
+                            alert(`✅ تم إضافة ${entriesToUpload.length} سجل جديد.\n🚫 تم رفض ${duplicatesCount} سجل مكرر.`);
                             await fetchDataFromCloud();
                         }
+                    } else if (duplicatesCount > 0) {
+                        alert(`⚠️ جميع البيانات في الملف (${duplicatesCount}) موجودة مسبقاً!`);
                     } else {
-                        alert("لم يتم العثور على بيانات واضحة.");
+                        alert("لم يتم العثور على بيانات.");
                     }
 
                 } catch (err) {
                     console.error(err);
-                    alert("خطأ في قراءة الملف: " + err.message);
+                    alert("خطأ: " + err.message);
                 } finally {
                     showLoader(false);
                     input.value = '';
@@ -330,22 +380,6 @@
             if(error) console.warn(error);
             employeeData = data || [];
             renderTable();
-        }
-
-        async function saveEntryToCloud() {
-            const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
-            const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
-            showLoader(true);
-            const { data, error } = await db.from('invoices').insert([entry]).select();
-            showLoader(false);
-            if(error) alert("فشل الحفظ: " + error.message);
-            else { 
-                alert("✅ تم الحفظ!"); 
-                if(data) employeeData.push(data[0]); 
-                renderTable(); 
-                clearInputs(); 
-            }
         }
 
         async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
@@ -453,4 +487,3 @@
     </script>
 </body>
 </html>
-
