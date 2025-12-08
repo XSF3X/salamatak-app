@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V23 - الحفظ المؤكد)</title>
+    <title>نظام سلامتك (V24 - إصلاح الترتيب)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -33,7 +33,7 @@
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري العمل...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
@@ -218,14 +218,14 @@
             fetchDataFromCloud();
         }
 
-        // --- 2. Cloud Operations (Save/Fetch) ---
+        // --- 2. Cloud Operations (FIXED SORTING) ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            // جلب البيانات الخاصة بالمستخدم الحالي فقط
+            // تم تغيير الترتيب ليكون حسب ID لضمان العمل حتى بدون عمود created_at
             const { data, error } = await db.from('invoices')
                 .select('*')
                 .eq('employee_name', currentUser)
-                .order('created_at', { ascending: false });
+                .order('id', { ascending: false }); // ترتيب حسب المعرف (الأحدث في الأعلى)
             
             showLoader(false);
             if(error) {
@@ -242,7 +242,7 @@
             if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة (رقم البطاقة أو الفاتورة)");
             
             const entry = {
-                employee_name: currentUser, // ربط السجل بالمستخدم
+                employee_name: currentUser,
                 card_no: manualCardNo,
                 patient_name: document.getElementById('pName').value,
                 file_no: document.getElementById('fileNo').value,
