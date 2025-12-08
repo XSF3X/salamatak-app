@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V23 - الحفظ المؤكد)</title>
+    <title>نظام سلامتك (V24 - النسخة العاملة)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -15,16 +15,25 @@
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: white; }
+        
+        /* تنسيق الكاميرا */
         .camera-container { position: relative; width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
         .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
         .scanning .scan-line { display: block; }
+        
+        /* النوافذ */
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
         .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
+        
+        /* الحقول والجداول */
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
-        .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
+        
+        /* تنسيق الجدول مثل الاكسل */
+        .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; font-weight: bold; }
+        .excel-table td { border: 1px solid #d1d5db; color: #1f2937; vertical-align: middle; background-color: white; font-weight: 500; }
+        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
@@ -33,20 +42,23 @@
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري العمل...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">جاري الاتصال...</div>
+            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص الاتصال...</div>
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
-            <h2 class="text-3xl font-extrabold text-white mb-2">دخول النظام</h2>
+            <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
+            
             <input type="text" id="loginName" placeholder="اسم المستخدم" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
+            
             <div class="relative mb-6">
                 <input type="password" id="loginPin" placeholder="الرقم السري" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest">
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
-            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
+            
+            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>جاري التحميل...</button>
             <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
     </div>
@@ -54,7 +66,7 @@
     <div id="adminPanelModal" class="fixed inset-0 flex items-center justify-center hidden modal">
         <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-2 border-red-600 h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
-                <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> الإدارة</h2>
+                <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
                 <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
             </div>
             <div class="bg-gray-700 p-4 rounded-xl mb-6">
@@ -76,9 +88,9 @@
         <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-t-4 border-orange-600">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-purple-600" onclick="selectCardType('100')"><span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span><p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p></div>
-                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-teal-600" onclick="selectCardType('200')"><span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span><p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p></div>
-                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-black" onclick="selectCardType('500')"><span class="text-4xl font-extrabold text-black block mb-2">500</span><p class="text-sm text-gray-500 font-bold">ربح: 15 ريال</p></div>
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-purple-600 cursor-pointer" onclick="selectCardType('100')"><span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span><p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p></div>
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-teal-600 cursor-pointer" onclick="selectCardType('200')"><span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span><p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p></div>
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-black cursor-pointer" onclick="selectCardType('500')"><span class="text-4xl font-extrabold text-black block mb-2">500</span><p class="text-sm text-gray-500 font-bold">ربح: 15 ريال</p></div>
             </div>
         </div>
     </div>
@@ -87,7 +99,7 @@
         <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg">
             <div class="flex items-center gap-4">
                 <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md"><i class="fa-solid fa-user-check"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase">مرحباً</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
+                <div><p class="text-xs text-gray-400 uppercase">أهلاً بك</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
             </div>
             <div class="flex items-center gap-2">
                  <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i></button>
@@ -115,13 +127,13 @@
 
             <div class="bg-gray-800 rounded-2xl p-6 text-white shadow-2xl h-fit border border-gray-700">
                 <div class="mb-5">
-                    <label class="text-xs font-bold text-orange-400 uppercase mb-2 block">رقم البطاقة</label>
+                    <label class="text-xs font-bold text-orange-400 uppercase mb-2 block">رقم البطاقة (CARD NO)</label>
                     <input type="text" id="cardNo" placeholder="الرقم..." class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">اسم المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">رقم الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">رقم الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">التاريخ</label><input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm"></div>
                 </div>
                 <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ سحابي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
@@ -140,7 +152,7 @@
             <div class="overflow-x-auto max-h-[500px]">
                 <table class="w-full text-sm text-center text-gray-700 whitespace-nowrap excel-table bg-white">
                     <thead class="sticky top-0 z-10 shadow-md">
-                        <tr><th class="p-3 w-12">#</th><th class="p-3">رقم البطاقة</th><th class="p-3 text-right">اسم المريض</th><th class="p-3">رقم الملف</th><th class="p-3">الفاتورة</th><th class="p-3">التاريخ</th><th class="p-3 bg-yellow-400 text-black">الفئة</th><th class="p-3">المكسب</th><th class="p-3 bg-gray-800 text-white">إجراء</th></tr>
+                        <tr><th class="p-3 w-12">SN</th><th class="p-3">CARD NO</th><th class="p-3 text-right">PATIENT NAME</th><th class="p-3">FILE NO.</th><th class="p-3">INV. NO.</th><th class="p-3">DATE</th><th class="p-3 bg-yellow-400 text-black">REMARK</th><th class="p-3">PROFIT</th><th class="p-3 bg-gray-800 text-white">#</th></tr>
                     </thead>
                     <tbody id="tbody"></tbody>
                 </table>
@@ -151,7 +163,7 @@
 
     <script>
         // ==========================================
-        // 🔴 هام: استبدل الرابط والمفتاح هنا
+        // 🔴 هام: استبدل الروابط هنا
         // ==========================================
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
@@ -163,7 +175,7 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- Connection Check ---
+        // --- الاتصال ---
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
             const loginBtn = document.getElementById('loginBtn');
@@ -178,7 +190,7 @@
                 const { count, error } = await db.from('users').select('*', { count: 'exact', head: true });
                 if (error) throw error;
 
-                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل (جاهز للدخول)</span>";
+                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل بقاعدة البيانات</span>";
                 loginBtn.disabled = false;
                 loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
                 loginBtn.classList.replace('text-gray-400', 'text-white');
@@ -189,7 +201,7 @@
             }
         }
 
-        // --- 1. Login ---
+        // --- 1. الدخول ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim();
             const pin = document.getElementById('loginPin').value.trim();
@@ -200,7 +212,7 @@
             showLoader(false);
 
             if (error) {
-                showError("خطأ قاعدة بيانات: " + error.message);
+                showError("خطأ تقني: " + error.message);
             } else if (!data) {
                 showError("❌ خطأ: الاسم أو الرقم السري غير صحيح");
             } else {
@@ -218,14 +230,14 @@
             fetchDataFromCloud();
         }
 
-        // --- 2. Cloud Operations (FIXED SORTING) ---
+        // --- 2. العمليات السحابية (تصحيح الترتيب) ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            // تم تغيير الترتيب ليكون حسب ID لضمان العمل حتى بدون عمود created_at
+            // الترتيب حسب ID لتجنب خطأ created_at
             const { data, error } = await db.from('invoices')
                 .select('*')
                 .eq('employee_name', currentUser)
-                .order('id', { ascending: false }); // ترتيب حسب المعرف (الأحدث في الأعلى)
+                .order('id', { ascending: false }); // الترتيب بالأحدث
             
             showLoader(false);
             if(error) {
@@ -257,12 +269,23 @@
             showLoader(false);
 
             if(error) {
-                alert("فشل الحفظ: " + error.message);
+                alert("فشل الحفظ: " + error.message + "\nتأكد من تعطيل RLS في Supabase");
             } else {
-                alert("✅ تم الحفظ بنجاح!");
+                // نجاح!
                 if(data) employeeData.unshift(data[0]);
                 renderTable();
                 clearInputs();
+                // وميض زر الحفظ
+                const btn = document.querySelector('button[onclick="saveEntryToCloud()"]');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `<span>تم الحفظ!</span> <i class="fa-solid fa-check"></i>`;
+                btn.classList.remove('from-green-600', 'to-green-500');
+                btn.classList.add('from-blue-600', 'to-blue-500');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.add('from-green-600', 'to-green-500');
+                    btn.classList.remove('from-blue-600', 'to-blue-500');
+                }, 2000);
             }
         }
 
@@ -278,7 +301,7 @@
             }
         }
 
-        // --- Helper Functions ---
+        // --- دوال مساعدة ---
         function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
         
         function renderTable() {
