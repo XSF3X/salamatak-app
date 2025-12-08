@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (الآمن)</title>
+    <title>نظام سلامتك (V19 - المشخص الذكي)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -17,44 +17,45 @@
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: white; }
-        
-        /* Camera */
         .camera-container { position: relative; width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
         .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
         .scanning .scan-line { display: block; }
-        
-        /* Modal */
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
         .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
-        
-        /* Inputs & Tables */
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
         .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
         .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
-
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
-<body class="p-4 md:p-6">
+<body class="p-4 md:p-6" onload="checkConnection()">
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري المعالجة...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
-        <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600">
-            <div class="mb-6"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
+        <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
+            
+            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">
+                جاري فحص الاتصال بـ Supabase...
+            </div>
+
+            <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            <p class="text-gray-400 mb-6 text-sm">أدخل بياناتك للوصول للنظام</p>
             
             <input type="text" id="loginName" placeholder="اسم المستخدم" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
             <input type="password" id="loginPin" placeholder="الرقم السري (PIN)" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-6 text-center tracking-widest">
             
-            <button onclick="loginSystem()" class="w-full bg-orange-600 hover:bg-orange-500 text-white py-3 rounded-xl font-bold text-lg shadow-lg">دخول 🔐</button>
+            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>
+                انتظر الفحص...
+            </button>
+
+            <div id="errorMsg" class="mt-4 text-red-400 text-sm font-bold hidden bg-red-900/30 p-2 rounded"></div>
         </div>
     </div>
 
@@ -64,9 +65,8 @@
                 <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
                 <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
             </div>
-
             <div class="bg-gray-700 p-4 rounded-xl mb-6">
-                <h3 class="font-bold text-white mb-3 text-sm">➕ إضافة مستخدم جديد</h3>
+                <h3 class="font-bold text-white mb-3 text-sm">➕ إضافة مستخدم</h3>
                 <div class="grid grid-cols-3 gap-2">
                     <input type="text" id="newUsername" placeholder="الاسم" class="bg-gray-900 border border-gray-600 p-2 rounded text-white text-center">
                     <input type="text" id="newPin" placeholder="الرقم السري" class="bg-gray-900 border border-gray-600 p-2 rounded text-white text-center">
@@ -77,16 +77,10 @@
                 </div>
                 <button onclick="addNewUser()" class="w-full mt-3 bg-green-600 hover:bg-green-500 text-white py-2 rounded font-bold">حفظ المستخدم</button>
             </div>
-
             <div class="overflow-y-auto flex-1">
                 <table class="w-full text-center text-sm text-gray-300">
                     <thead class="bg-gray-900 text-gray-400 sticky top-0">
-                        <tr>
-                            <th class="p-3">الاسم</th>
-                            <th class="p-3">الرقم السري</th>
-                            <th class="p-3">الصلاحية</th>
-                            <th class="p-3">حذف</th>
-                        </tr>
+                        <tr><th class="p-3">الاسم</th><th class="p-3">PIN</th><th class="p-3">الصلاحية</th><th class="p-3">حذف</th></tr>
                     </thead>
                     <tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody>
                 </table>
@@ -99,16 +93,13 @@
             <h2 class="text-2xl font-bold text-white mb-6 text-center">حدد الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="card-option bg-white p-6 rounded-xl border-l-8 border-purple-600" onclick="selectCardType('100')">
-                    <span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span>
-                    <p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p>
+                    <span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span><p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p>
                 </div>
                 <div class="card-option bg-white p-6 rounded-xl border-l-8 border-teal-600" onclick="selectCardType('200')">
-                    <span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span>
-                    <p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p>
+                    <span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span><p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p>
                 </div>
                 <div class="card-option bg-white p-6 rounded-xl border-l-8 border-black" onclick="selectCardType('500')">
-                    <span class="text-4xl font-extrabold text-black block mb-2">500</span>
-                    <p class="text-sm text-gray-500 font-bold">ربح: 15 ريال</p>
+                    <span class="text-4xl font-extrabold text-black block mb-2">500</span><p class="text-sm text-gray-500 font-bold">ربح: 15 ريال</p>
                 </div>
             </div>
         </div>
@@ -117,24 +108,13 @@
     <div id="mainContent" class="hidden max-w-6xl mx-auto">
         <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg">
             <div class="flex items-center gap-4">
-                <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md">
-                    <i class="fa-solid fa-user-check"></i>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400 uppercase">مرحباً</p>
-                    <h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1>
-                </div>
+                <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md"><i class="fa-solid fa-user-check"></i></div>
+                <div><p class="text-xs text-gray-400 uppercase">مرحباً</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
             </div>
-            
             <div class="flex items-center gap-2">
-                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400">
-                    <i class="fa-solid fa-gear"></i> إدارة
-                 </button>
-                 
+                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i> إدارة</button>
                  <span class="hidden md:inline-block text-xs bg-gray-700 px-3 py-1.5 rounded text-gray-300 font-mono" id="currentCategoryBadge">--</span>
-                 <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
+                 <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
         </div>
 
@@ -144,9 +124,7 @@
                     <video id="video" autoplay playsinline muted></video>
                     <img id="imagePreview" class="w-full h-full object-contain hidden bg-black">
                     <div class="scan-line"></div>
-                    <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText">
-                        <span class="text-gray-300">جاهز...</span>
-                    </div>
+                    <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg">📷 الكاميرا</button>
@@ -168,9 +146,7 @@
                     <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">التاريخ</label><input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm"></div>
                 </div>
-                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2">
-                    <span>حفظ في ملفي</span> <i class="fa-solid fa-cloud-arrow-up"></i>
-                </button>
+                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ في ملفي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
             </div>
         </div>
 
@@ -181,25 +157,12 @@
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">تغيير الفئة 🔄</button>
                     <button onclick="fetchDataFromCloud()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
                 </div>
-                <div class="text-right">
-                    <span class="block text-xs text-gray-500">رصيدك</span>
-                    <span class="text-green-700 font-extrabold text-xl" id="totalProfitDisplay">0 ريال</span>
-                </div>
+                <div class="text-right"><span class="block text-xs text-gray-500">رصيدك</span><span class="text-green-700 font-extrabold text-xl" id="totalProfitDisplay">0 ريال</span></div>
             </div>
             <div class="overflow-x-auto max-h-[500px]">
                 <table class="w-full text-sm text-center text-gray-700 whitespace-nowrap excel-table bg-white">
                     <thead class="sticky top-0 z-10 shadow-md">
-                        <tr>
-                            <th class="p-3 w-12">#</th>
-                            <th class="p-3">رقم البطاقة</th>
-                            <th class="p-3 text-right">اسم المريض</th>
-                            <th class="p-3">رقم الملف</th>
-                            <th class="p-3">الفاتورة</th>
-                            <th class="p-3">التاريخ</th>
-                            <th class="p-3 bg-yellow-400 text-black">الفئة</th>
-                            <th class="p-3">المكسب</th>
-                            <th class="p-3 bg-gray-800 text-white">إجراء</th>
-                        </tr>
+                        <tr><th class="p-3 w-12">#</th><th class="p-3">رقم البطاقة</th><th class="p-3 text-right">اسم المريض</th><th class="p-3">رقم الملف</th><th class="p-3">الفاتورة</th><th class="p-3">التاريخ</th><th class="p-3 bg-yellow-400 text-black">الفئة</th><th class="p-3">المكسب</th><th class="p-3 bg-gray-800 text-white">إجراء</th></tr>
                     </thead>
                     <tbody id="tbody"></tbody>
                 </table>
@@ -210,219 +173,161 @@
 
     <script>
         // ==========================================
-        // ضع روابط SUPABASE هنا
+        // 🔴 هام جداً: استبدل الرابط والمفتاح هنا
         // ==========================================
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
         // ==========================================
 
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        // تهيئة العميل
+        let supabase;
+        try {
+            supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            console.error("خطأ في تهيئة Supabase:", e);
+        }
 
-        let currentUser = null;
-        let currentRole = 'user'; // admin or user
-        let employeeData = [];
-        let currentCardValue = ''; 
-        let currentCommission = 0; 
-        
+        // المتغيرات
+        let currentUser = null; let currentRole = 'user'; let employeeData = [];
+        let currentCardValue = ''; let currentCommission = 0; 
         let stream = null; let isScanning = false; let scanInterval = null;
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const cameraBox = document.getElementById('cameraBox');
+        const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- 1. نظام الدخول الآمن ---
+        // --- فاحص الاتصال الذكي ---
+        async function checkConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) {
+                statusDiv.textContent = "❌ خطأ: لم يتم وضع رابط Supabase في الكود";
+                statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-red-500";
+                return;
+            }
+
+            try {
+                // محاولة الاتصال البسيط بقاعدة البيانات
+                const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    throw error;
+                } else {
+                    statusDiv.innerHTML = "✅ تم الاتصال بقاعدة البيانات بنجاح";
+                    statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-green-400";
+                    loginBtn.disabled = false;
+                    loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
+                    loginBtn.classList.replace('text-gray-400', 'text-white');
+                    loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500');
+                    loginBtn.textContent = "دخول 🔐";
+                }
+            } catch (err) {
+                statusDiv.textContent = "❌ فشل الاتصال";
+                statusDiv.className = "absolute top-2 left-0 right-0 text-xs font-bold text-red-500";
+                errorMsg.classList.remove('hidden');
+                
+                if(err.code === 'PGRST301' || err.message.includes('404')) {
+                    errorMsg.textContent = "الجدول 'users' غير موجود! هل أنشأته؟";
+                } else if (err.message.includes('API key')) {
+                    errorMsg.textContent = "مفتاح API غير صحيح!";
+                } else {
+                    errorMsg.textContent = "خطأ: " + err.message;
+                }
+            }
+        }
+
+        // --- 1. الدخول ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim();
             const pin = document.getElementById('loginPin').value.trim();
-
-            if(!name || !pin) return alert("أدخل الاسم والرقم السري");
+            if(!name || !pin) return alert("أدخل البيانات");
 
             showLoader(true);
-            // البحث عن المستخدم في قاعدة البيانات
-            const { data, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', name)
-                .eq('pin', pin)
-                .single();
-            
+            const { data, error } = await supabase.from('users').select('*').eq('username', name).eq('pin', pin).single();
             showLoader(false);
 
             if(error || !data) {
-                alert("خطأ: الاسم أو الرقم السري غير صحيح!");
+                alert("بيانات الدخول غير صحيحة!");
             } else {
-                // نجاح الدخول
                 currentUser = data.username;
                 currentRole = data.role;
-                
                 document.getElementById('displayEmployeeName').textContent = currentUser;
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('cardModal').classList.remove('hidden');
-
-                // إذا كان أدمن، نظهر زر الإدارة
-                if(currentRole === 'admin') {
-                    document.getElementById('adminBtn').classList.remove('hidden');
-                }
-
+                if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
                 await fetchDataFromCloud();
             }
         }
 
-        // --- 2. لوحة تحكم المشرف (Admin Panel) ---
+        // --- 2. إدارة المشرف ---
         async function openAdminPanel() {
             document.getElementById('adminPanelModal').classList.remove('hidden');
             loadAllUsers();
         }
-
         async function loadAllUsers() {
-            const { data, error } = await supabase.from('users').select('*').order('id');
+            const { data } = await supabase.from('users').select('*').order('id');
             if(data) {
                 const tbody = document.getElementById('usersTableBody');
                 tbody.innerHTML = '';
                 data.forEach(user => {
-                    const row = `
+                    tbody.innerHTML += `
                         <tr class="hover:bg-gray-800">
-                            <td class="p-3 text-white font-bold">${user.username}</td>
+                            <td class="p-3 font-bold">${user.username}</td>
                             <td class="p-3 text-yellow-400 font-mono">${user.pin}</td>
-                            <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs ${user.role === 'admin' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}">
-                                    ${user.role}
-                                </span>
-                            </td>
-                            <td class="p-3">
-                                <button onclick="deleteUser(${user.id})" class="text-red-500 hover:text-red-400"><i class="fa-solid fa-trash"></i></button>
-                            </td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
+                            <td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td>
+                            <td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                        </tr>`;
                 });
             }
         }
-
         async function addNewUser() {
             const name = document.getElementById('newUsername').value.trim();
             const pin = document.getElementById('newPin').value.trim();
             const role = document.getElementById('newRole').value;
-
-            if(!name || !pin) return alert("البيانات ناقصة");
-
+            if(!name || !pin) return alert("ناقصة");
             const { error } = await supabase.from('users').insert([{ username: name, pin: pin, role: role }]);
-            
-            if(error) alert("خطأ: " + error.message);
-            else {
-                document.getElementById('newUsername').value = '';
-                document.getElementById('newPin').value = '';
-                loadAllUsers(); // تحديث القائمة
-                alert("تم إضافة الموظف بنجاح ✅");
-            }
+            if(error) alert(error.message); else { loadAllUsers(); alert("تم!"); }
         }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await supabase.from('users').delete().eq('id', id); loadAllUsers(); } }
 
-        async function deleteUser(id) {
-            if(!confirm("حذف هذا المستخدم نهائياً؟")) return;
-            const { error } = await supabase.from('users').delete().eq('id', id);
-            if(!error) loadAllUsers();
-        }
-
-        // --- 3. النظام العادي (جلب بياناتي فقط) ---
+        // --- 3. النظام ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            const { data, error } = await supabase
-                .from('invoices')
-                .select('*')
-                .eq('employee_name', currentUser) // العزل: بياناتي فقط
-                .order('created_at', { ascending: false });
-
+            const { data } = await supabase.from('invoices').select('*').eq('employee_name', currentUser).order('created_at', { ascending: false });
             showLoader(false);
-            if(!error) {
-                employeeData = data || [];
-                renderTable();
-            }
+            employeeData = data || [];
+            renderTable();
         }
-
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة!");
-            
-            const entry = {
-                employee_name: currentUser,
-                card_no: manualCardNo,
-                patient_name: document.getElementById('pName').value,
-                file_no: document.getElementById('fileNo').value,
-                inv_no: document.getElementById('invNo').value,
-                inv_date: document.getElementById('pDate').value,
-                remark: currentCardValue,
-                profit: currentCommission
-            };
-
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة");
+            const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
             showLoader(true);
             const { data, error } = await supabase.from('invoices').insert([entry]).select();
             showLoader(false);
-
-            if(!error && data) {
-                employeeData.unshift(data[0]);
-                renderTable();
-                clearInputs();
-            } else {
-                alert("فشل الحفظ");
-            }
+            if(!error && data) { employeeData.unshift(data[0]); renderTable(); clearInputs(); } else alert("فشل");
         }
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await supabase.from('invoices').delete().eq('id', id); employeeData = employeeData.filter(i=>i.id!==id); renderTable(); } }
 
-        async function deleteFromCloud(id) {
-            if(!confirm("حذف الفاتورة؟")) return;
-            const { error } = await supabase.from('invoices').delete().eq('id', id);
-            if(!error) {
-                employeeData = employeeData.filter(item => item.id !== id);
-                renderTable();
-            }
-        }
-
-        // --- دوال مساعدة ---
-        function selectCardType(v) {
-            currentCardValue = v;
-            if (v === '100') currentCommission = 5; else if (v === '200') currentCommission = 10; else currentCommission = 15;
-            document.getElementById('currentCategoryBadge').textContent = `الفئة: ${v}`;
-            document.getElementById('cardModal').classList.add('hidden');
-            document.getElementById('mainContent').classList.remove('hidden');
-            document.getElementById('cardNo').focus();
-        }
-
+        // --- أدوات ---
+        function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
         function renderTable() {
-            const tbody = document.getElementById('tbody');
-            tbody.innerHTML = '';
-            let total = 0;
+            const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0;
             employeeData.forEach((row, i) => {
-                total += parseFloat(row.profit || 0);
-                const tr = `<tr class="hover:bg-gray-50 border-b transition">
-                        <td class="p-3 bg-orange-100 font-bold">${employeeData.length - i}</td>
-                        <td class="p-3 font-mono font-bold text-gray-800">${row.card_no}</td>
-                        <td class="p-3 text-right font-bold text-gray-700">${row.patient_name}</td>
-                        <td class="p-3 font-mono text-blue-600">${row.file_no}</td>
-                        <td class="p-3 font-mono text-xs text-red-500">${row.inv_no}</td>
-                        <td class="p-3 font-mono text-xs text-gray-500">${row.inv_date}</td>
-                        <td class="p-3 bg-yellow-100 font-bold">${row.remark}</td>
-                        <td class="p-3 font-bold text-green-600">+${row.profit}</td>
-                        <td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td>
-                    </tr>`;
-                tbody.innerHTML += tr;
+                total += parseFloat(row.profit||0);
+                tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold">${employeeData.length-i}</td><td class="p-3 font-mono font-bold text-gray-800">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700">${row.patient_name}</td><td class="p-3 font-mono text-blue-600">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
             });
             document.getElementById('totalProfitDisplay').textContent = `${total} ريال`;
         }
-
+        function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
-        function clearInputs() { 
-            ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); 
-            document.getElementById('cardNo').focus();
-        }
-        function exportXLS() {
-             if (employeeData.length === 0) return alert("فارغ!");
-             const d = employeeData.map((row, i) => ({ "SN": i+1, "CARD NO": row.card_no, "PATIENT NAME": row.patient_name, "FILE NO.": row.file_no, "INV. NO.": row.inv_no, "DATE": row.inv_date, "REMARK": parseInt(row.remark), "PROFIT (SAR)": row.profit }));
-            const ws = XLSX.utils.json_to_sheet(d); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales");
-            XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`);
+        function exportXLS() { 
+            if(!employeeData.length)return alert("فارغ"); 
+            const d=employeeData.map((row,i)=>({"SN":i+1,"CARD NO":row.card_no,"PATIENT NAME":row.patient_name,"FILE NO.":row.file_no,"INV. NO.":row.inv_no,"DATE":row.inv_date,"REMARK":parseInt(row.remark),"PROFIT (SAR)":row.profit}));
+            const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`); 
         }
 
-        // --- الكاميرا ---
-        async function startLiveScan() {
-            try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert(e); }
-        }
+        // --- الكاميرا والـ OCR ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert(e); } }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
