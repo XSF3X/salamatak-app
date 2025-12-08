@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V28 - تقويم يدوي)</title>
+    <title>نظام سلامتك (V30 - الاستيراد الذكي)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -27,12 +27,7 @@
         .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; }
         .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
-        
-        /* Date Picker Customization */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1); /* أيقونة بيضاء */
-            cursor: pointer;
-        }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
@@ -40,7 +35,7 @@
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري الاتصال...</p>
+        <p class="mt-4 text-white font-bold tracking-wider">جاري العمل...</p>
     </div>
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
@@ -129,30 +124,32 @@
                     <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
-                    
                     <div class="relative">
                         <label class="text-[10px] font-bold text-gray-400">التاريخ</label>
                         <div class="flex items-center">
                             <input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm pl-8">
-                            
-                            <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-6">
-                                <i class="fa-solid fa-calendar-days text-lg"></i>
-                            </button>
-                            
+                            <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-6"><i class="fa-solid fa-calendar-days text-lg"></i></button>
                             <input type="date" id="datePickerHidden" class="absolute opacity-0 bottom-0 left-0 w-0 h-0" onchange="updateDateFromPicker()">
                         </div>
                     </div>
-                    </div>
+                </div>
                 <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ سحابي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
             </div>
         </div>
 
         <div class="bg-white rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mt-6">
             <div class="flex justify-between items-center bg-gray-100 p-4 border-b">
-                <div class="flex gap-2">
-                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">تنزيل Excel 📥</button>
-                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
-                    <button onclick="fetchDataFromCloud()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
+                <div class="flex gap-2 items-center">
+                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
+                    <div class="relative">
+                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+                            استيراد ملف قديم 📂
+                        </button>
+                        <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
+                    </div>
+                    
+                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
+                    <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
                 </div>
                 <div class="text-right"><span class="block text-xs text-gray-500">رصيدك</span><span class="text-green-700 font-extrabold text-xl" id="totalProfitDisplay">0 ريال</span></div>
             </div>
@@ -172,8 +169,8 @@
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
-        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
+        const SUPABASE_KEY = 'YOUR_SUPABASE_KEY'; 
         // ==========================================
 
         let db = null;
@@ -182,22 +179,108 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- دالة تحديث التاريخ من التقويم ---
-        function updateDateFromPicker() {
-            const picker = document.getElementById('datePickerHidden');
-            const textInput = document.getElementById('pDate');
-            if (picker.value) {
-                textInput.value = picker.value; // يضع التاريخ المختار في المربع
+        // --- ⚡ الذكاء الاصطناعي للاستيراد (Smart Import) ⚡ ---
+        async function smartImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            if(!confirm("سيقوم النظام بتحليل الملف ودمج البيانات في حسابك. هل أنت متأكد؟")) {
+                input.value = ''; return;
             }
+
+            showLoader(true);
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    // تحويل إلى مصفوفة (Array of Arrays) لفحص المحتوى بدقة
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ""});
+
+                    const entriesToUpload = [];
+                    
+                    // تجاهل صف العناوين والبدء بالبيانات
+                    // سنقوم بمسح كل صف للبحث عن الأنماط
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        let entry = {
+                            employee_name: currentUser,
+                            remark: '100', // افتراضي
+                            profit: 5
+                        };
+                        
+                        let foundData = false;
+
+                        // فحص كل خلية في الصف
+                        row.forEach(cell => {
+                            if(!cell) return;
+                            let strVal = String(cell).trim();
+
+                            // 1. رقم الملف (ينتهي بـ L أو رقم طويل جداً)
+                            if (strVal.toUpperCase().endsWith('L') && strVal.length > 5) {
+                                entry.file_no = strVal.toUpperCase();
+                                foundData = true;
+                            }
+                            // 2. الفاتورة (تحتوي على CSH أو - أو / مع أرقام)
+                            else if ((strVal.includes('CSH') || strVal.includes('OC-') || (strVal.includes('-') && strVal.length > 10)) && /\d/.test(strVal)) {
+                                // تنظيف الفاتورة
+                                if(strVal.includes('CSH/')) strVal = strVal.split('CSH/')[1];
+                                entry.inv_no = strVal;
+                                foundData = true;
+                            }
+                            // 3. التاريخ (يحتوي على سنة أو شهر)
+                            else if (strVal.match(/\d{2,4}[-/]\w{3}[-/]\d{2,4}/) || strVal.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) {
+                                entry.inv_date = strVal;
+                            }
+                            // 4. الفئة (100, 200, 500)
+                            else if (['100', '200', '500'].includes(strVal)) {
+                                entry.remark = strVal;
+                                entry.profit = (strVal==='500'?15 : (strVal==='200'?10 : 5));
+                            }
+                            // 5. رقم البطاقة (أرقام فقط، طولها معقول، وليست الفئة)
+                            else if (/^\d+$/.test(strVal) && strVal.length > 3 && !['100','200','500'].includes(strVal)) {
+                                entry.card_no = strVal;
+                                foundData = true;
+                            }
+                            // 6. الاسم (نص لا يحتوي أرقام كثيرة)
+                            else if (strVal.length > 3 && !/\d{3}/.test(strVal) && !entry.patient_name) {
+                                entry.patient_name = strVal;
+                            }
+                        });
+
+                        // إذا وجدنا بيانات مفيدة (رقم ملف أو بطاقة) نضيفها
+                        if (foundData && entry.card_no) {
+                            entriesToUpload.push(entry);
+                        }
+                    }
+
+                    if(entriesToUpload.length > 0) {
+                        const { error } = await db.from('invoices').insert(entriesToUpload);
+                        if(error) alert("خطأ أثناء الدمج: " + error.message);
+                        else {
+                            alert(`✅ تم استيراد ودمج ${entriesToUpload.length} سجل بنجاح!`);
+                            await fetchDataFromCloud();
+                        }
+                    } else {
+                        alert("لم يتم العثور على بيانات قابلة للقراءة في الملف.");
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    alert("خطأ في قراءة الملف: " + err.message);
+                } finally {
+                    showLoader(false);
+                    input.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
-        function handleEnter(e, nextId) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } 
-                else { document.getElementById(nextId).focus(); }
-            }
-        }
+        // --- باقي الدوال (Standard) ---
+        function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
+        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
 
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
