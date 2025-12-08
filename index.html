@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V27 - الألوان والترتيب)</title>
+    <title>نظام سلامتك (V28 - تقويم يدوي)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -24,10 +24,15 @@
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
         .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        /* تنسيق الجدول الداخلي */
         .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; }
         .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
+        
+        /* Date Picker Customization */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1); /* أيقونة بيضاء */
+            cursor: pointer;
+        }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
@@ -43,18 +48,11 @@
             <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص...</div>
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            
-            <input type="text" id="loginName" placeholder="اسم المستخدم" 
-                   onkeydown="handleEnter(event, 'loginPin')"
-                   class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
-            
+            <input type="text" id="loginName" placeholder="اسم المستخدم" onkeydown="handleEnter(event, 'loginPin')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
             <div class="relative mb-6">
-                <input type="password" id="loginPin" placeholder="الرقم السري" 
-                       onkeydown="handleEnter(event, 'loginBtn')"
-                       class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest">
+                <input type="password" id="loginPin" placeholder="الرقم السري" onkeydown="handleEnter(event, 'loginBtn')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest">
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
-            
             <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
             <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
@@ -131,8 +129,20 @@
                     <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">التاريخ</label><input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm"></div>
-                </div>
+                    
+                    <div class="relative">
+                        <label class="text-[10px] font-bold text-gray-400">التاريخ</label>
+                        <div class="flex items-center">
+                            <input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm pl-8">
+                            
+                            <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-6">
+                                <i class="fa-solid fa-calendar-days text-lg"></i>
+                            </button>
+                            
+                            <input type="date" id="datePickerHidden" class="absolute opacity-0 bottom-0 left-0 w-0 h-0" onchange="updateDateFromPicker()">
+                        </div>
+                    </div>
+                    </div>
                 <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ سحابي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
             </div>
         </div>
@@ -160,7 +170,7 @@
 
     <script>
         // ==========================================
-        // 🔴 هام: استبدل الروابط هنا
+        // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
@@ -172,15 +182,20 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- Enter Key Handler ---
+        // --- دالة تحديث التاريخ من التقويم ---
+        function updateDateFromPicker() {
+            const picker = document.getElementById('datePickerHidden');
+            const textInput = document.getElementById('pDate');
+            if (picker.value) {
+                textInput.value = picker.value; // يضع التاريخ المختار في المربع
+            }
+        }
+
         function handleEnter(e, nextId) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                if (nextId === 'loginBtn') {
-                    document.getElementById('loginBtn').click();
-                } else {
-                    document.getElementById(nextId).focus();
-                }
+                if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } 
+                else { document.getElementById(nextId).focus(); }
             }
         }
 
@@ -215,14 +230,12 @@
             fetchDataFromCloud();
         }
 
-        // --- الترتيب (تصاعدي: القديم أولاً، الجديد آخراً) ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            // ascending: true يعني من 1 إلى 10 (القديم فوق، الجديد تحت)
             const { data, error } = await db.from('invoices')
                 .select('*')
                 .eq('employee_name', currentUser)
-                .order('id', { ascending: true }); // تم عكس الترتيب هنا
+                .order('id', { ascending: true }); // ترتيب قديم فوق، جديد تحت
             
             showLoader(false);
             if(error) console.warn(error);
@@ -240,7 +253,6 @@
             if(error) alert("فشل الحفظ: " + error.message);
             else { 
                 alert("✅ تم الحفظ!"); 
-                // إضافة للصفحة (في الأسفل لأن الترتيب تصاعدي)
                 if(data) employeeData.push(data[0]); 
                 renderTable(); 
                 clearInputs(); 
@@ -253,7 +265,6 @@
         
         function renderTable() {
             const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0;
-            // Loop through data (Oldest First is naturally index 0)
             employeeData.forEach((row, i) => {
                 total += parseFloat(row.profit||0);
                 tbody.innerHTML += `
@@ -272,79 +283,32 @@
             document.getElementById('totalProfitDisplay').textContent = `${total} ريال`;
         }
 
-        // --- دالة التصدير الملونة والجميلة (Excel Styling) ---
         function exportXLS() {
             if(!employeeData.length) return alert("فارغ");
-            
-            // 1. تجهيز البيانات مع الهيدر
             const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"];
-            const data = [header]; // الصف الأول هو العناوين
-
+            const data = [header];
             employeeData.forEach((row, i) => {
-                data.push([
-                    i + 1,
-                    row.card_no,
-                    row.patient_name,
-                    row.file_no,
-                    row.inv_no,
-                    row.inv_date,
-                    parseInt(row.remark),
-                    row.profit
-                ]);
+                data.push([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ]);
             });
-
-            // 2. إنشاء ورقة عمل
             const ws = XLSX.utils.aoa_to_sheet(data);
-
-            // 3. تنسيق الأعمدة (العرض)
-            ws['!cols'] = [
-                { wch: 5 },  // SN
-                { wch: 15 }, // Card
-                { wch: 30 }, // Name
-                { wch: 15 }, // File
-                { wch: 20 }, // Inv
-                { wch: 15 }, // Date
-                { wch: 10 }, // Remark
-                { wch: 12 }  // Profit
-            ];
-
-            // 4. تطبيق الألوان والحدود (Styling)
+            ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }];
             const range = XLSX.utils.decode_range(ws['!ref']);
             for (let R = range.s.r; R <= range.e.r; ++R) {
                 for (let C = range.s.c; C <= range.e.c; ++C) {
                     const cell_address = XLSX.utils.encode_cell({r: R, c: C});
                     if (!ws[cell_address]) continue;
-
-                    // إعدادات افتراضية للخلية (حدود + توسيط)
                     ws[cell_address].s = {
-                        border: {
-                            top: { style: "thin", color: { rgb: "000000" } },
-                            bottom: { style: "thin", color: { rgb: "000000" } },
-                            left: { style: "thin", color: { rgb: "000000" } },
-                            right: { style: "thin", color: { rgb: "000000" } }
-                        },
+                        border: { top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } }, left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } } },
                         alignment: { horizontal: "center", vertical: "center" },
                         font: { name: "Calibri", sz: 11 }
                     };
-
-                    // تنسيق خاص للرأس (الصف الأول)
-                    if (R === 0) {
-                        ws[cell_address].s.fill = { fgColor: { rgb: "EA580C" } }; // برتقالي
-                        ws[cell_address].s.font = { name: "Calibri", sz: 12, bold: true, color: { rgb: "FFFFFF" } };
-                    }
-                    // تلوين خاص للأعمدة (مثال: عمود الفئة أصفر)
-                    else if (C === 6) { // عمود REMARK
-                        ws[cell_address].s.fill = { fgColor: { rgb: "FEF08A" } }; // أصفر فاتح
-                    }
+                    if (R === 0) { ws[cell_address].s.fill = { fgColor: { rgb: "EA580C" } }; ws[cell_address].s.font = { name: "Calibri", sz: 12, bold: true, color: { rgb: "FFFFFF" } }; }
+                    else if (C === 6) { ws[cell_address].s.fill = { fgColor: { rgb: "FEF08A" } }; }
                 }
             }
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Sales");
-            XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`);
         }
 
-        // --- باقي الوظائف (تنظيف، كاميرا، لودر) ---
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
