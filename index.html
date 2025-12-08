@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V30 - الاستيراد الذكي)</title>
+    <title>نظام سلامتك (V31 - الاستيراد الدقيق)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -142,12 +142,9 @@
                 <div class="flex gap-2 items-center">
                     <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
                     <div class="relative">
-                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
-                            استيراد ملف قديم 📂
-                        </button>
-                        <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
+                        <button onclick="document.getElementById('oldExcelFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">استيراد ملف 📂</button>
+                        <input type="file" id="oldExcelFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
-                    
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
                     <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
                 </div>
@@ -169,7 +166,7 @@
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
-        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
+        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.c'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
         // ==========================================
 
@@ -179,14 +176,12 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- ⚡ الذكاء الاصطناعي للاستيراد (Smart Import) ⚡ ---
+        // --- ⚡ الاستيراد الذكي (V31) ⚡ ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
 
-            if(!confirm("سيقوم النظام بتحليل الملف ودمج البيانات في حسابك. هل أنت متأكد؟")) {
-                input.value = ''; return;
-            }
+            if(!confirm("سيتم دمج البيانات من هذا الملف. هل أنت متأكد؟")) { input.value = ''; return; }
 
             showLoader(true);
             const reader = new FileReader();
@@ -194,82 +189,98 @@
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
+                    // تفعيل قراءة التواريخ (cellDates: true)
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    // تحويل إلى مصفوفة (Array of Arrays) لفحص المحتوى بدقة
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ""});
+                    // قراءة المصفوفة كاملة
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+
+                    // 1. تحديد الأعمدة (Header Mapping)
+                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
+                    let headerRowIndex = -1;
+
+                    // البحث عن صف العناوين
+                    for(let i=0; i<Math.min(10, jsonData.length); i++) {
+                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                        if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
+                            headerRowIndex = i;
+                            const header = jsonData[i].map(h => String(h).toUpperCase().trim());
+                            
+                            // تعيين الفهارس
+                            header.forEach((h, idx) => {
+                                if(h.includes("CARD")) colMap.card = idx;
+                                if(h.includes("NAME") || h.includes("PATIENT")) colMap.name = idx;
+                                if(h.includes("FILE")) colMap.file = idx;
+                                if(h.includes("INV")) colMap.inv = idx;
+                                if(h.includes("DATE")) colMap.date = idx;
+                                if(h.includes("REMARK")) colMap.remark = idx;
+                                if(h.includes("PROFIT")) colMap.profit = idx;
+                            });
+                            break;
+                        }
+                    }
 
                     const entriesToUpload = [];
-                    
-                    // تجاهل صف العناوين والبدء بالبيانات
-                    // سنقوم بمسح كل صف للبحث عن الأنماط
-                    for (let i = 1; i < jsonData.length; i++) {
+                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 1;
+
+                    for (let i = startRow; i < jsonData.length; i++) {
                         const row = jsonData[i];
-                        let entry = {
-                            employee_name: currentUser,
-                            remark: '100', // افتراضي
-                            profit: 5
-                        };
+                        if (!row || row.length === 0) continue;
+
+                        let entry = { employee_name: currentUser, remark: '100', profit: 5 };
                         
-                        let foundData = false;
-
-                        // فحص كل خلية في الصف
-                        row.forEach(cell => {
-                            if(!cell) return;
-                            let strVal = String(cell).trim();
-
-                            // 1. رقم الملف (ينتهي بـ L أو رقم طويل جداً)
-                            if (strVal.toUpperCase().endsWith('L') && strVal.length > 5) {
-                                entry.file_no = strVal.toUpperCase();
-                                foundData = true;
+                        // الخيار 1: إذا وجدنا العناوين، نستخدمها بدقة
+                        if (headerRowIndex !== -1) {
+                            if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                            if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                            if (colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                            if (colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                            if (colMap.date > -1) {
+                                // معالجة التاريخ بدقة
+                                let dVal = row[colMap.date];
+                                if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); 
+                                else entry.inv_date = String(dVal || '').trim();
                             }
-                            // 2. الفاتورة (تحتوي على CSH أو - أو / مع أرقام)
-                            else if ((strVal.includes('CSH') || strVal.includes('OC-') || (strVal.includes('-') && strVal.length > 10)) && /\d/.test(strVal)) {
-                                // تنظيف الفاتورة
-                                if(strVal.includes('CSH/')) strVal = strVal.split('CSH/')[1];
-                                entry.inv_no = strVal;
-                                foundData = true;
-                            }
-                            // 3. التاريخ (يحتوي على سنة أو شهر)
-                            else if (strVal.match(/\d{2,4}[-/]\w{3}[-/]\d{2,4}/) || strVal.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) {
-                                entry.inv_date = strVal;
-                            }
-                            // 4. الفئة (100, 200, 500)
-                            else if (['100', '200', '500'].includes(strVal)) {
-                                entry.remark = strVal;
-                                entry.profit = (strVal==='500'?15 : (strVal==='200'?10 : 5));
-                            }
-                            // 5. رقم البطاقة (أرقام فقط، طولها معقول، وليست الفئة)
-                            else if (/^\d+$/.test(strVal) && strVal.length > 3 && !['100','200','500'].includes(strVal)) {
-                                entry.card_no = strVal;
-                                foundData = true;
-                            }
-                            // 6. الاسم (نص لا يحتوي أرقام كثيرة)
-                            else if (strVal.length > 3 && !/\d{3}/.test(strVal) && !entry.patient_name) {
-                                entry.patient_name = strVal;
-                            }
-                        });
-
-                        // إذا وجدنا بيانات مفيدة (رقم ملف أو بطاقة) نضيفها
-                        if (foundData && entry.card_no) {
-                            entriesToUpload.push(entry);
+                            if (colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if (colMap.profit > -1) entry.profit = row[colMap.profit];
+                        } 
+                        // الخيار 2: التخمين (Fallback)
+                        else {
+                            row.forEach(cell => {
+                                let s = String(cell).trim();
+                                if(!s) return;
+                                if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s;
+                                else if((s.includes('-') || s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(['100','200','500'].includes(s)) { entry.remark = s; }
+                                else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s;
+                                else if(new Date(s) !== "Invalid Date" && !isNaN(new Date(s))) entry.inv_date = s;
+                            });
                         }
+
+                        // تصحيح الأرباح إذا كانت فارغة
+                        if (!entry.profit || entry.profit == 0) {
+                            entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+                        }
+
+                        // شرط الإضافة: وجود رقم بطاقة
+                        if (entry.card_no) entriesToUpload.push(entry);
                     }
 
                     if(entriesToUpload.length > 0) {
                         const { error } = await db.from('invoices').insert(entriesToUpload);
-                        if(error) alert("خطأ أثناء الدمج: " + error.message);
+                        if(error) alert("خطأ دمج: " + error.message);
                         else {
-                            alert(`✅ تم استيراد ودمج ${entriesToUpload.length} سجل بنجاح!`);
+                            alert(`✅ تم استيراد ${entriesToUpload.length} سجل بنجاح!`);
                             await fetchDataFromCloud();
                         }
                     } else {
-                        alert("لم يتم العثور على بيانات قابلة للقراءة في الملف.");
+                        alert("لم يتم العثور على بيانات واضحة.");
                     }
 
                 } catch (err) {
                     console.error(err);
-                    alert("خطأ في قراءة الملف: " + err.message);
+                    alert("خطأ: " + err.message);
                 } finally {
                     showLoader(false);
                     input.value = '';
@@ -278,7 +289,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- باقي الدوال (Standard) ---
+        // --- Standard Functions ---
         function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
         function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
 
@@ -318,7 +329,7 @@
             const { data, error } = await db.from('invoices')
                 .select('*')
                 .eq('employee_name', currentUser)
-                .order('id', { ascending: true }); // ترتيب قديم فوق، جديد تحت
+                .order('id', { ascending: true });
             
             showLoader(false);
             if(error) console.warn(error);
@@ -447,4 +458,3 @@
     </script>
 </body>
 </html>
-
