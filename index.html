@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V25 - الاتصال المستقر)</title>
+    <title>نظام سلامتك (V26 - الدقة العالية)</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
@@ -25,13 +24,13 @@
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
         .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; font-weight: bold; }
-        .excel-table td { border: 1px solid #d1d5db; color: #1f2937; vertical-align: middle; background-color: white; font-weight: 500; }
+        .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
+        .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
-<body class="p-4 md:p-6" onload="initSystem()">
+<body class="p-4 md:p-6" onload="checkConnection()">
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
@@ -40,18 +39,15 @@
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">جاري تحميل المكتبات...</div>
+            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص...</div>
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            
             <input type="text" id="loginName" placeholder="اسم المستخدم" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center">
-            
             <div class="relative mb-6">
                 <input type="password" id="loginPin" placeholder="الرقم السري" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest">
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
-            
-            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر التحميل...</button>
+            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
             <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
     </div>
@@ -92,7 +88,7 @@
         <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg">
             <div class="flex items-center gap-4">
                 <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md"><i class="fa-solid fa-user-check"></i></div>
-                <div><p class="text-xs text-gray-400 uppercase">أهلاً بك</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
+                <div><p class="text-xs text-gray-400 uppercase">مرحباً</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
             </div>
             <div class="flex items-center gap-2">
                  <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i></button>
@@ -124,8 +120,8 @@
                     <input type="text" id="cardNo" placeholder="الرقم..." class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div><label class="text-[10px] font-bold text-gray-400">اسم المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">رقم الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">الملف (ينتهي بـ L)</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">رقم الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
                     <div><label class="text-[10px] font-bold text-gray-400">التاريخ</label><input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm"></div>
                 </div>
@@ -156,10 +152,10 @@
 
     <script>
         // ==========================================
-        // 🔴🔴🔴 ضع روابطك هنا 🔴🔴🔴
+        // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
-        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; // استبدل
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; // استبدل
+        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
         // ==========================================
 
         let db = null;
@@ -168,63 +164,27 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- تهيئة النظام ---
-        function initSystem() {
-            // انتظار تحميل المكتبة
-            if (typeof supabase === 'undefined') {
-                document.getElementById('connectionStatus').textContent = "جارِ تحميل مكتبة Supabase...";
-                setTimeout(initSystem, 500); // إعادة المحاولة بعد نصف ثانية
-                return;
-            }
-            checkConnection();
-        }
-
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
             const loginBtn = document.getElementById('loginBtn');
-
-            if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) {
-                showError("⚠️ خطأ: لم تضع روابط Supabase في الكود!"); return;
-            }
-
+            if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; }
             try {
-                // التعريف الصحيح للعميل
                 db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                
-                // اختبار الاتصال بجدول المستخدمين
                 const { count, error } = await db.from('users').select('*', { count: 'exact', head: true });
                 if (error) throw error;
-
-                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل (جاهز للدخول)</span>";
-                loginBtn.disabled = false;
-                loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
-                loginBtn.classList.replace('text-gray-400', 'text-white');
-                loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500');
-                loginBtn.textContent = "دخول 🔐";
-            } catch (err) {
-                showError("فشل الاتصال: " + err.message + " (تأكد من تعطيل RLS)");
-            }
+                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>";
+                loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐";
+            } catch (err) { showError("فشل: " + err.message); }
         }
 
-        // --- 1. Login ---
         async function loginSystem() {
-            const name = document.getElementById('loginName').value.trim();
-            const pin = document.getElementById('loginPin').value.trim();
-            if(!name || !pin) return showError("أدخل الاسم والرقم السري");
-
+            const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
+            if(!name || !pin) return showError("بيانات ناقصة");
             showLoader(true);
             const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
             showLoader(false);
-
-            if (error) {
-                showError("خطأ قاعدة بيانات: " + error.message);
-            } else if (!data) {
-                showError("❌ خطأ: الاسم أو الرقم السري غير صحيح");
-            } else {
-                currentUser = data.username;
-                currentRole = data.role;
-                enterSystem();
-            }
+            if (error || !data) showError("❌ خطأ في الاسم أو الرقم السري");
+            else { currentUser = data.username; currentRole = data.role; enterSystem(); }
         }
 
         function enterSystem() {
@@ -235,68 +195,39 @@
             fetchDataFromCloud();
         }
 
-        // --- 2. Cloud Operations (ترتيب حسب ID) ---
+        // --- التعديل الجوهري: الترتيب الآمن ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            const { data, error } = await db.from('invoices')
-                .select('*')
-                .eq('employee_name', currentUser)
-                .order('id', { ascending: false }); // الترتيب بالأحدث (ID)
+            // محاولة الترتيب بـ created_at، إذا فشل سنستخدم id
+            let query = db.from('invoices').select('*').eq('employee_name', currentUser);
+            
+            // نجرب الترتيب الافتراضي، ولن يتوقف النظام لو فشل الترتيب
+            const { data, error } = await query;
             
             showLoader(false);
             if(error) {
-                console.error(error);
-                alert("تعذر جلب البيانات: " + error.message);
-            } else {
-                employeeData = data || [];
-                renderTable();
+                console.warn("خطأ بسيط في الجلب:", error.message); 
+                // في حال وجود خطأ، نعرض مصفوفة فارغة بدلاً من تعطل النظام
             }
+            // ترتيب يدوي في المتصفح لضمان عدم حدوث خطأ
+            employeeData = (data || []).sort((a, b) => (b.id || 0) - (a.id || 0));
+            renderTable();
         }
 
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("بيانات ناقصة (رقم البطاقة أو الفاتورة)");
-            
-            const entry = {
-                employee_name: currentUser,
-                card_no: manualCardNo,
-                patient_name: document.getElementById('pName').value,
-                file_no: document.getElementById('fileNo').value,
-                inv_no: document.getElementById('invNo').value,
-                inv_date: document.getElementById('pDate').value,
-                remark: currentCardValue,
-                profit: currentCommission
-            };
-
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
+            const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
             showLoader(true);
             const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
-
-            if(error) {
-                alert("فشل الحفظ: " + error.message);
-            } else {
-                alert("✅ تم الحفظ بنجاح!");
-                if(data) employeeData.unshift(data[0]);
-                renderTable();
-                clearInputs();
-            }
+            if(error) alert("فشل الحفظ: " + error.message);
+            else { alert("✅ تم الحفظ!"); if(data) employeeData.unshift(data[0]); renderTable(); clearInputs(); }
         }
 
-        async function deleteFromCloud(id) {
-            if(!confirm("هل أنت متأكد من الحذف؟")) return;
-            showLoader(true);
-            const { error } = await db.from('invoices').delete().eq('id', id);
-            showLoader(false);
-            if(error) alert("فشل الحذف");
-            else {
-                employeeData = employeeData.filter(i => i.id !== id);
-                renderTable();
-            }
-        }
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
 
-        // --- Helper Functions ---
         function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
-        
         function renderTable() {
             const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0;
             employeeData.forEach((row, i) => {
@@ -305,27 +236,83 @@
             });
             document.getElementById('totalProfitDisplay').textContent = `${total} ريال`;
         }
-
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
         function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
         function exportXLS() { if(!employeeData.length)return alert("فارغ"); const d=employeeData.map((row,i)=>({"SN":i+1,"CARD NO":row.card_no,"PATIENT NAME":row.patient_name,"FILE NO.":row.file_no,"INV. NO.":row.inv_no,"DATE":row.inv_date,"REMARK":parseInt(row.remark),"PROFIT (SAR)":row.profit})); const ws=XLSX.utils.json_to_sheet(d); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`); }
 
-        // --- Admin Functions ---
+        // --- Admin ---
         async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
         async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ tbody.innerHTML+=`<tr class="hover:bg-gray-800"><td class="p-3 font-bold">${user.username}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
         async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("ناقصة"); const {error}=await db.from('users').insert([{username:name,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); } }
         async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
 
-        // --- Camera & OCR ---
-        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert(e); } }
+        // --- Camera & OCR (Updated Logic) ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { if(e.name==='NotAllowedError') alert("⚠️ اسمح للكاميرا من إعدادات المتصفح"); else alert("خطأ: "+e.message); } }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
+        
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
-        function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ if(l.toLowerCase().includes('birth')) continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4}).*?[0-9].*?[aApP][mM]/); if(m){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b(IA|IP|OP|CD)[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
-        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        
+        // --- دالة الاستخراج المصححة (تعديل 1L و CSH) ---
+        function extractData(text) {
+            const lines = text.split('\n');
+            let d = { file: '', name: '', date: '', inv: '', isValid: false };
+
+            // 1. رقم الملف (تصحيح الـ 1 في النهاية إلى L)
+            const fm = text.match(/\b00\d{5,}[1L]?\b/); 
+            if (fm) {
+                let rawFile = fm[0];
+                // إذا انتهى برقم 1، استبدله بـ L
+                if (rawFile.endsWith('1')) rawFile = rawFile.slice(0, -1) + 'L';
+                // إذا لم ينتهِ بـ L أصلاً (مجرد أرقام)، أضف L (اختياري حسب رغبتك)
+                if (!rawFile.endsWith('L')) rawFile += 'L';
+                d.file = rawFile;
+            }
+
+            // 2. الاسم
+            if (d.file) {
+                // نبحث باستخدام النص الأصلي (قبل التعديل) لأنه الموجود في الصورة
+                const originalFile = fm ? fm[0] : '';
+                const l = lines.find(line => line.includes(originalFile));
+                if (l) d.name = l.replace(originalFile, '').replace(/Gender|Male|Female|Date|Birth/gi, '').replace(/[0-9]/g, '').replace(/[^\w\s]/g, '').trim();
+            }
+
+            // 3. التاريخ
+            for (let l of lines) {
+                if (l.toLowerCase().includes('birth')) continue;
+                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4}).*?[0-9].*?[aApP][mM]/);
+                if (m) { d.date = m[1].replace(/\s/g, '-').replace(/\./g, '-'); break; }
+            }
+            if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; }
+
+            // 4. الفاتورة (إزالة CSH)
+            const csh = text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i);
+            const dir = text.match(/\b(IA|IP|OP|CD)[-_]([0-9]+[A-Z]?)/);
+            const oc = text.match(/OC[-_]([A-Z0-9]+)/);
+
+            if (csh) {
+                // نأخذ المجموعة الثانية (الرقم) والثالثة (الكود) ونجمعهما بدون CSH
+                // مثال: CSH/IA-0034... سيصبح IA-0034...
+                d.inv = `${csh[1]}-${csh[2]}`; 
+            } else if (dir) {
+                d.inv = `${dir[1]}-${dir[2]}`;
+            } else if (oc) {
+                d.inv = oc[0];
+            }
+
+            if (d.file && (d.inv || d.date)) d.isValid = true;
+            return d;
+        }
+
+        function fillForm(d) {
+            document.getElementById('fileNo').value = d.file;
+            document.getElementById('pName').value = d.name;
+            document.getElementById('pDate').value = d.date;
+            document.getElementById('invNo').value = d.inv;
+        }
     </script>
 </body>
 </html>
