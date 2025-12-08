@@ -3,42 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V24 - النسخة العاملة)</title>
+    <title>نظام سلامتك (V25 - الاتصال المستقر)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: white; }
-        
-        /* تنسيق الكاميرا */
         .camera-container { position: relative; width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
         .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
         .scanning .scan-line { display: block; }
-        
-        /* النوافذ */
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
         .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
-        
-        /* الحقول والجداول */
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        
-        /* تنسيق الجدول مثل الاكسل */
         .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; font-weight: bold; }
         .excel-table td { border: 1px solid #d1d5db; color: #1f2937; vertical-align: middle; background-color: white; font-weight: 500; }
-        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
         @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
     </style>
 </head>
-<body class="p-4 md:p-6" onload="checkConnection()">
+<body class="p-4 md:p-6" onload="initSystem()">
 
     <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
@@ -47,7 +40,7 @@
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص الاتصال...</div>
+            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">جاري تحميل المكتبات...</div>
             <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
             
@@ -58,7 +51,7 @@
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
             
-            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>جاري التحميل...</button>
+            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر التحميل...</button>
             <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
     </div>
@@ -127,7 +120,7 @@
 
             <div class="bg-gray-800 rounded-2xl p-6 text-white shadow-2xl h-fit border border-gray-700">
                 <div class="mb-5">
-                    <label class="text-xs font-bold text-orange-400 uppercase mb-2 block">رقم البطاقة (CARD NO)</label>
+                    <label class="text-xs font-bold text-orange-400 uppercase mb-2 block">رقم البطاقة</label>
                     <input type="text" id="cardNo" placeholder="الرقم..." class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-6">
@@ -152,7 +145,7 @@
             <div class="overflow-x-auto max-h-[500px]">
                 <table class="w-full text-sm text-center text-gray-700 whitespace-nowrap excel-table bg-white">
                     <thead class="sticky top-0 z-10 shadow-md">
-                        <tr><th class="p-3 w-12">SN</th><th class="p-3">CARD NO</th><th class="p-3 text-right">PATIENT NAME</th><th class="p-3">FILE NO.</th><th class="p-3">INV. NO.</th><th class="p-3">DATE</th><th class="p-3 bg-yellow-400 text-black">REMARK</th><th class="p-3">PROFIT</th><th class="p-3 bg-gray-800 text-white">#</th></tr>
+                        <tr><th class="p-3 w-12">#</th><th class="p-3">رقم البطاقة</th><th class="p-3 text-right">اسم المريض</th><th class="p-3">رقم الملف</th><th class="p-3">الفاتورة</th><th class="p-3">التاريخ</th><th class="p-3 bg-yellow-400 text-black">الفئة</th><th class="p-3">المكسب</th><th class="p-3 bg-gray-800 text-white">إجراء</th></tr>
                     </thead>
                     <tbody id="tbody"></tbody>
                 </table>
@@ -163,10 +156,10 @@
 
     <script>
         // ==========================================
-        // 🔴 هام: استبدل الروابط هنا
+        // 🔴🔴🔴 ضع روابطك هنا 🔴🔴🔴
         // ==========================================
-        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
+        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; // استبدل
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; // استبدل
         // ==========================================
 
         let db = null;
@@ -175,22 +168,34 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- الاتصال ---
+        // --- تهيئة النظام ---
+        function initSystem() {
+            // انتظار تحميل المكتبة
+            if (typeof supabase === 'undefined') {
+                document.getElementById('connectionStatus').textContent = "جارِ تحميل مكتبة Supabase...";
+                setTimeout(initSystem, 500); // إعادة المحاولة بعد نصف ثانية
+                return;
+            }
+            checkConnection();
+        }
+
         async function checkConnection() {
             const statusDiv = document.getElementById('connectionStatus');
             const loginBtn = document.getElementById('loginBtn');
 
             if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) {
-                showError("⚠️ خطأ: روابط Supabase مفقودة!"); return;
+                showError("⚠️ خطأ: لم تضع روابط Supabase في الكود!"); return;
             }
 
             try {
+                // التعريف الصحيح للعميل
                 db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
                 // اختبار الاتصال بجدول المستخدمين
                 const { count, error } = await db.from('users').select('*', { count: 'exact', head: true });
                 if (error) throw error;
 
-                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل بقاعدة البيانات</span>";
+                statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل (جاهز للدخول)</span>";
                 loginBtn.disabled = false;
                 loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
                 loginBtn.classList.replace('text-gray-400', 'text-white');
@@ -201,7 +206,7 @@
             }
         }
 
-        // --- 1. الدخول ---
+        // --- 1. Login ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim();
             const pin = document.getElementById('loginPin').value.trim();
@@ -212,7 +217,7 @@
             showLoader(false);
 
             if (error) {
-                showError("خطأ تقني: " + error.message);
+                showError("خطأ قاعدة بيانات: " + error.message);
             } else if (!data) {
                 showError("❌ خطأ: الاسم أو الرقم السري غير صحيح");
             } else {
@@ -230,14 +235,13 @@
             fetchDataFromCloud();
         }
 
-        // --- 2. العمليات السحابية (تصحيح الترتيب) ---
+        // --- 2. Cloud Operations (ترتيب حسب ID) ---
         async function fetchDataFromCloud() {
             showLoader(true);
-            // الترتيب حسب ID لتجنب خطأ created_at
             const { data, error } = await db.from('invoices')
                 .select('*')
                 .eq('employee_name', currentUser)
-                .order('id', { ascending: false }); // الترتيب بالأحدث
+                .order('id', { ascending: false }); // الترتيب بالأحدث (ID)
             
             showLoader(false);
             if(error) {
@@ -269,23 +273,12 @@
             showLoader(false);
 
             if(error) {
-                alert("فشل الحفظ: " + error.message + "\nتأكد من تعطيل RLS في Supabase");
+                alert("فشل الحفظ: " + error.message);
             } else {
-                // نجاح!
+                alert("✅ تم الحفظ بنجاح!");
                 if(data) employeeData.unshift(data[0]);
                 renderTable();
                 clearInputs();
-                // وميض زر الحفظ
-                const btn = document.querySelector('button[onclick="saveEntryToCloud()"]');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = `<span>تم الحفظ!</span> <i class="fa-solid fa-check"></i>`;
-                btn.classList.remove('from-green-600', 'to-green-500');
-                btn.classList.add('from-blue-600', 'to-blue-500');
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.add('from-green-600', 'to-green-500');
-                    btn.classList.remove('from-blue-600', 'to-blue-500');
-                }, 2000);
             }
         }
 
@@ -301,7 +294,7 @@
             }
         }
 
-        // --- دوال مساعدة ---
+        // --- Helper Functions ---
         function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('cardNo').focus(); }
         
         function renderTable() {
