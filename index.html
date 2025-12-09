@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V33 - منع التكرار)</title>
+    <title>نظام سلامتك (V34 - دقة التاريخ)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -147,6 +147,7 @@
                         </button>
                         <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
+                    
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
                     <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
                 </div>
@@ -164,13 +165,14 @@
         <canvas id="canvas" class="hidden"></canvas>
     </div>
 
-   <script>
+  <script>
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
         // ==========================================
+
 
         let db = null;
         let currentUser = null; let currentRole = 'user'; let employeeData = [];
