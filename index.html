@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V46 - إصلاح الكاميرا)</title>
+    <title>نظام سلامتك (V48 - الفاتورة الصحيحة)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -26,7 +26,7 @@
         .card-img-btn:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.5); border-color: #f59e0b; }
         .card-img-btn img { width: 100%; height: auto; object-fit: contain; display: block; }
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
+        .excel-table th { background-color: #ea580c; color: white; border: 1px solid #4b5563; }
         .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
@@ -91,9 +91,9 @@
         <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-t-4 border-orange-600">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.PNG" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.PNG" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.PNG" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.png" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.png" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.png" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
             </div>
         </div>
     </div>
@@ -136,7 +136,6 @@
                     <div class="scan-line"></div>
                     <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
                 </div>
-                
                 <div class="grid grid-cols-3 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
                     <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
@@ -246,23 +245,17 @@
             else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); }
         }
 
-        // --- 3. Save Entry (Strict Validation) ---
+        // --- 3. Save Entry ---
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            const pName = document.getElementById('pName').value.trim();
-            const fileNo = document.getElementById('fileNo').value.trim();
-            const invNo = document.getElementById('invNo').value.trim();
-            const pDate = document.getElementById('pDate').value.trim();
-
-            if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
-                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة.");
-            }
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
 
             showLoader(true);
+            // Check Duplicates based on FULL NAME
             const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
             if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
-            const entry = { employee_name: currentFullName, card_no: manualCardNo, patient_name: pName, file_no: fileNo, inv_no: invNo, inv_date: pDate, remark: currentCardValue, profit: currentCommission };
+            const entry = { employee_name: currentFullName, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
             const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
             if(error) alert("فشل الحفظ: " + error.message);
@@ -288,6 +281,7 @@
                     const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
                     const existingSet = new Set(existingCards.map(i => String(i.card_no).trim()));
 
+                    // --- Regex Updated: Allows ANY 2 letters ---
                     let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     let headerRowIndex = -1;
 
@@ -347,7 +341,10 @@
                                 let s = String(cell).trim();
                                 if(!s) return;
                                 if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s;
-                                else if((s.includes('-') || s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                // 🔥 Regex Updated for flexibility 🔥
+                                else if((s.includes('-') || s.includes('CSH')) && /\d/.test(s)) {
+                                     entry.inv_no = s.replace('CSH/','');
+                                }
                                 else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s;
                                 else if(['100','200','500'].includes(s)) entry.remark = s;
                                 else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s;
@@ -426,46 +423,55 @@
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
         function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
         
-        // 🔥 FIX: Added flashBtn to DOM and JS 🔥
-        async function startLiveScan() { 
-            try { 
-                document.getElementById('imagePreview').classList.add('hidden'); 
-                video.classList.remove('hidden'); 
-                cameraBox.classList.remove('success'); 
-                cameraBox.classList.add('scanning'); 
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); 
-                video.srcObject = stream; 
-                video.play(); 
-                
-                // Show Flash Button if available
-                const t = stream.getVideoTracks()[0];
-                const caps = t.getCapabilities();
-                const flashBtn = document.getElementById('flashBtn'); // ✅ Safety Check
-                if(flashBtn && caps.torch) flashBtn.classList.remove('hidden');
-
-                isScanning = true; 
-                scanInterval = setInterval(processFrame, 2000); 
-            } catch (e) { alert("خطأ كاميرا: " + e.message); } 
-        }
-        
-        async function toggleFlash() { 
-            if(stream){ 
-                const t=stream.getVideoTracks()[0]; 
-                const c=t.getCapabilities(); 
-                // ✅ Added safety for button
-                if(c.torch) {
-                    await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]});
-                }
-            } 
-        }
-        
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; const caps = t.getCapabilities(); const flashBtn = document.getElementById('flashBtn'); if(flashBtn && caps.torch) flashBtn.classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
-        function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b(OO|IP|OP|CD)[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
+        
+        function extractData(text) { 
+            const lines = text.split('\n'); 
+            let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
+            
+            // File No (ends with L, fix 1L)
+            const fm = text.match(/\b00\d{5,}[1L]?\b/); 
+            if (fm) { 
+                let rawFile = fm[0]; 
+                if (rawFile.endsWith('1')) rawFile = rawFile.slice(0, -1) + 'L'; 
+                if (!rawFile.endsWith('L')) rawFile += 'L'; 
+                d.file = rawFile; 
+            } 
+            
+            // Name
+            if (d.file) { 
+                const l = lines.find(line => line.includes(fm[0])); 
+                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth/gi, '').replace(/[0-9]/g, '').replace(/[^\w\s]/g, '').trim(); 
+            } 
+            
+            // Date (Priority to lines with AM/PM)
+            for (let l of lines) { 
+                let c = l.toLowerCase(); 
+                if (c.includes('birth')||c.includes('dob')) continue; 
+                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); 
+                if (m && (c.includes('am')||c.includes('pm')||c.includes(':'))) { d.date = m[1].replace(/\s/g, '-').replace(/\./g, '-'); break; } 
+            } 
+            if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
+            
+            // Invoice Logic (Updated to catch ANY 2 chars followed by dash and numbers)
+            // It ignores CSH automatically by looking for the pattern (XX-00...)
+            const csh = text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); 
+            const dir = text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); 
+            const oc = text.match(/OC[-_]([A-Z0-9]+)/); 
+            
+            if (csh) { d.inv = `${csh[1]}-${csh[2]}`; } 
+            else if (dir) { d.inv = `${dir[1]}-${dir[2]}`; } 
+            else if (oc) { d.inv = oc[0]; } 
+            
+            if (d.file && (d.inv || d.date)) d.isValid = true; 
+            return d; 
+        }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
     </script>
 </body>
 </html>
-
