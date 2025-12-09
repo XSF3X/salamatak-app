@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V45 - الحارس الصارم)</title>
+    <title>نظام سلامتك (V46 - إصلاح الكاميرا)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -88,12 +88,12 @@
     </div>
 
     <div id="cardModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-5xl w-full mx-4 border-t-4 border-orange-600">
+        <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-t-4 border-orange-600">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.jpg" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.jpg" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.jpg" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.PNG" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.PNG" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.PNG" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
             </div>
         </div>
     </div>
@@ -136,9 +136,12 @@
                     <div class="scan-line"></div>
                     <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 mb-6">
-                    <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg">📷 الكاميرا</button>
-                    <div class="relative">
+                
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
+                    <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
+                    
+                    <div class="relative col-span-1">
                         <button onclick="document.getElementById('fileIn').click()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl shadow-lg">📂 ملف</button>
                         <input type="file" id="fileIn" class="hidden" accept="image/*,application/pdf" onchange="handleFile(this)">
                     </div>
@@ -172,9 +175,7 @@
                 <div class="flex gap-2 items-center flex-wrap">
                     <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
                     <div class="relative">
-                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
-                            استيراد ملف 📂
-                        </button>
+                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">استيراد ملف 📂</button>
                         <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
@@ -211,7 +212,7 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- 1. Login Logic ---
+        // --- 1. Login ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
@@ -253,13 +254,11 @@
             const invNo = document.getElementById('invNo').value.trim();
             const pDate = document.getElementById('pDate').value.trim();
 
-            // 🔥 التحقق الصارم: يجب أن تكون جميع الحقول ممتلئة 🔥
             if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
-                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة (التاريخ، الفاتورة، الملف، الاسم).");
+                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة.");
             }
 
             showLoader(true);
-            // Check Duplicates
             const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
             if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
@@ -270,7 +269,7 @@
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
 
-        // --- 4. Smart Import (Full & Strict) ---
+        // --- 4. Smart Import ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
@@ -292,7 +291,6 @@
                     let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     let headerRowIndex = -1;
 
-                    // Find Header
                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
                         const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
                         if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
@@ -331,7 +329,6 @@
                             inv_date: ''
                         };
                         
-                        // Extract Data
                         if (headerRowIndex !== -1) {
                             if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
                             if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
@@ -343,8 +340,9 @@
                                 else entry.inv_date = String(dVal || '').trim();
                             }
                             if (colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if (colMap.profit > -1) entry.profit = row[colMap.profit];
                         } 
-                        else { // Fallback
+                        else {
                             row.forEach(cell => {
                                 let s = String(cell).trim();
                                 if(!s) return;
@@ -357,18 +355,15 @@
                             });
                         }
 
-                        // Fix Profit
                         if (!entry.profit || entry.profit == 0) {
                             entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
                         }
 
-                        // 🔥 Check Completeness (Strict) 🔥
                         if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
                             skippedCount++;
                             continue;
                         }
 
-                        // Check Duplicates
                         if (existingSet.has(entry.card_no)) {
                             duplicatesCount++;
                             continue;
@@ -409,7 +404,6 @@
             if(v == '100') currentCommission = 5;
             else if(v == '200') currentCommission = 10;
             else if(v == '500') currentCommission = 15;
-            
             document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; 
             document.getElementById('cardModal').classList.add('hidden'); 
             document.getElementById('mainContent').classList.remove('hidden'); 
@@ -431,14 +425,46 @@
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
         function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
-        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        
+        // 🔥 FIX: Added flashBtn to DOM and JS 🔥
+        async function startLiveScan() { 
+            try { 
+                document.getElementById('imagePreview').classList.add('hidden'); 
+                video.classList.remove('hidden'); 
+                cameraBox.classList.remove('success'); 
+                cameraBox.classList.add('scanning'); 
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); 
+                video.srcObject = stream; 
+                video.play(); 
+                
+                // Show Flash Button if available
+                const t = stream.getVideoTracks()[0];
+                const caps = t.getCapabilities();
+                const flashBtn = document.getElementById('flashBtn'); // ✅ Safety Check
+                if(flashBtn && caps.torch) flashBtn.classList.remove('hidden');
+
+                isScanning = true; 
+                scanInterval = setInterval(processFrame, 2000); 
+            } catch (e) { alert("خطأ كاميرا: " + e.message); } 
+        }
+        
+        async function toggleFlash() { 
+            if(stream){ 
+                const t=stream.getVideoTracks()[0]; 
+                const c=t.getCapabilities(); 
+                // ✅ Added safety for button
+                if(c.torch) {
+                    await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]});
+                }
+            } 
+        }
+        
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
         function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b(IA|IP|OP|CD)[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
-        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } }
     </script>
 </body>
 </html>
