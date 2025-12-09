@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V49 - دقة التاريخ)</title>
+    <title>SALAMTK (V51 - التاريخ الدقيق)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -42,9 +42,6 @@
 
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            
-            <img src="unnamed.png" class="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg border-2 border-orange-500" alt="Logo">
-
             <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص...</div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
             <input type="text" id="loginName" placeholder="اسم المستخدم (ID)" onkeydown="handleEnter(event, 'loginPin')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center placeholder-gray-400">
@@ -144,7 +141,6 @@
                 <div class="grid grid-cols-3 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
                     <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
-                    
                     <div class="relative col-span-1">
                         <button onclick="document.getElementById('fileIn').click()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl shadow-lg">📂 ملف</button>
                         <input type="file" id="fileIn" class="hidden" accept="image/*,application/pdf" onchange="handleFile(this)">
@@ -199,7 +195,7 @@
         <canvas id="canvas" class="hidden"></canvas>
     </div>
 
-    <script>
+   <script>
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
@@ -250,7 +246,7 @@
             else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); }
         }
 
-        // --- 3. Save Entry ---
+        // --- 3. Save Entry (Strict Validation) ---
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
             const pName = document.getElementById('pName').value.trim();
@@ -259,7 +255,7 @@
             const pDate = document.getElementById('pDate').value.trim();
 
             if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
-                return alert("⚠️ تنبيه: جميع الخانات مطلوبة.");
+                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة (التاريخ، الفاتورة، الملف، الاسم).");
             }
 
             showLoader(true);
@@ -273,7 +269,7 @@
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
 
-        // --- 4. Smart Import ---
+        // --- 4. Smart Import (Full & Strict) ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
@@ -292,17 +288,23 @@
                     const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
                     const existingSet = new Set(existingCards.map(i => String(i.card_no).trim()));
 
-                    // ... (نفس منطق الاستيراد من V42 بالكامل) ...
-                    // [تم وضع الكود الكامل هنا في الملف النهائي]
                     let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     let headerRowIndex = -1;
+
+                    // Find Header
                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
                         const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
                         if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
                             headerRowIndex = i;
                             const header = jsonData[i].map(h => String(h).toUpperCase().trim());
                             header.forEach((h, idx) => {
-                                if(h.includes("CARD")) colMap.card = idx; if(h.includes("NAME") || h.includes("PATIENT")) colMap.name = idx; if(h.includes("FILE")) colMap.file = idx; if(h.includes("INV")) colMap.inv = idx; if(h.includes("DATE")) colMap.date = idx; if(h.includes("REMARK")) colMap.remark = idx; if(h.includes("PROFIT")) colMap.profit = idx;
+                                if(h.includes("CARD")) colMap.card = idx;
+                                if(h.includes("NAME") || h.includes("PATIENT")) colMap.name = idx;
+                                if(h.includes("FILE")) colMap.file = idx;
+                                if(h.includes("INV")) colMap.inv = idx;
+                                if(h.includes("DATE")) colMap.date = idx;
+                                if(h.includes("REMARK")) colMap.remark = idx;
+                                if(h.includes("PROFIT")) colMap.profit = idx;
                             });
                             break;
                         }
@@ -310,35 +312,82 @@
 
                     const entriesToUpload = [];
                     const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
-                    let skippedCount = 0; let duplicatesCount = 0;
+                    let skippedCount = 0;
+                    let duplicatesCount = 0;
 
                     for (let i = startRow; i < jsonData.length; i++) {
                         const row = jsonData[i];
                         if (!row || row.length === 0) continue;
-                        let entry = { employee_name: currentFullName, remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' };
+
+                        let entry = { 
+                            employee_name: currentFullName, 
+                            remark: '100', 
+                            profit: 5,
+                            card_no: '',
+                            patient_name: '',
+                            file_no: '',
+                            inv_no: '',
+                            inv_date: ''
+                        };
                         
+                        // Extract Data
                         if (headerRowIndex !== -1) {
                             if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
                             if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
                             if (colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
                             if (colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
-                            if (colMap.date > -1) { let dVal = row[colMap.date]; if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); else entry.inv_date = String(dVal || '').trim(); }
+                            if (colMap.date > -1) {
+                                let dVal = row[colMap.date];
+                                if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); 
+                                else entry.inv_date = String(dVal || '').trim();
+                            }
                             if (colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
-                        } else {
-                            row.forEach(cell => { let s = String(cell).trim(); if(!s) return; if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s; else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/',''); else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s; else if(['100','200','500'].includes(s)) entry.remark = s; else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s; else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s; });
+                        } 
+                        else { // Fallback
+                            row.forEach(cell => {
+                                let s = String(cell).trim();
+                                if(!s) return;
+                                if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s;
+                                else if((s.includes('-') || s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(['100','200','500'].includes(s)) entry.remark = s;
+                                else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s;
+                                else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
+                            });
                         }
 
-                        if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
-                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) { skippedCount++; continue; }
-                        if (existingSet.has(entry.card_no)) { duplicatesCount++; continue; }
-                        entriesToUpload.push(entry); existingSet.add(entry.card_no);
+                        // Fix Profit
+                        if (!entry.profit || entry.profit == 0) {
+                            entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+                        }
+
+                        // 🔥 Check Completeness (Strict) 🔥
+                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        // Check Duplicates
+                        if (existingSet.has(entry.card_no)) {
+                            duplicatesCount++;
+                            continue;
+                        }
+
+                        entriesToUpload.push(entry);
+                        existingSet.add(entry.card_no);
                     }
 
                     if(entriesToUpload.length > 0) {
                         const { error } = await db.from('invoices').insert(entriesToUpload);
                         if(error) alert("خطأ: " + error.message);
-                        else { alert(`✅ تم استيراد ${entriesToUpload.length} سجل.\n⚠️ تم تجاهل ${skippedCount} ناقص.\n🚫 تم تجاهل ${duplicatesCount} مكرر.`); await fetchDataFromCloud(); }
-                    } else { alert("لم يتم استيراد أي شيء."); }
+                        else {
+                            alert(`✅ تم استيراد ${entriesToUpload.length} سجل.\n⚠️ تم تجاهل ${skippedCount} ناقص.\n🚫 تم تجاهل ${duplicatesCount} مكرر.`);
+                            await fetchDataFromCloud();
+                        }
+                    } else {
+                        alert(`لم يتم استيراد أي شيء.\n(الناقص: ${skippedCount}, المكرر: ${duplicatesCount})`);
+                    }
+
                 } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
             };
             reader.readAsArrayBuffer(file);
@@ -359,6 +408,7 @@
             if(v == '100') currentCommission = 5;
             else if(v == '200') currentCommission = 10;
             else if(v == '500') currentCommission = 15;
+            
             document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; 
             document.getElementById('cardModal').classList.add('hidden'); 
             document.getElementById('mainContent').classList.remove('hidden'); 
@@ -419,12 +469,12 @@
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
         
-        // 🔥 OCR Logic V49 (Best Date + Invoice) 🔥
+        // 🔥 OCR Logic V51 (Strict Date) 🔥
         function extractData(text) { 
             const lines = text.split('\n'); 
             let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
             
-            // File No (ends with L, fix 1L)
+            // File No
             const fm = text.match(/\b00\d{5,}[1L]?\b/); 
             if (fm) { 
                 let rawFile = fm[0]; 
@@ -439,23 +489,28 @@
                 if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth/gi, '').replace(/[0-9]/g, '').replace(/[^\w\s]/g, '').trim(); 
             } 
             
-            // Date (V49: Ignore Birth, prioritize Time)
+            // Date (V51: Strict Filter)
             for (let l of lines) { 
                 let c = l.toLowerCase(); 
-                if (c.includes('birth')||c.includes('dob')||c.includes('gender')) continue; 
+                // 1. Strict Skip
+                if (c.includes('birth') || c.includes('dob') || c.includes('gender')) continue; 
+                
+                // 2. Strict Search: Must contain Time indicator or Date keyword
                 const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); 
-                if (m && (c.includes('am')||c.includes('pm')||c.includes(':'))) { d.date = m[1].replace(/\s/g, '-').replace(/\./g, '-'); break; } 
-            } 
+                if (m) {
+                    if (c.includes('am') || c.includes('pm') || c.includes(':') || c.includes('date')) {
+                        d.date = m[1].replace(/\s/g, '-').replace(/\./g, '-'); 
+                        break; 
+                    }
+                }
+            }
             if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
             
-            // Invoice Logic (V48: Ignore CSH, find pattern)
+            // Invoice
             const csh = text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); 
             const dir = text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); 
             const oc = text.match(/OC[-_]([A-Z0-9]+)/); 
-            
-            if (csh) { d.inv = `${csh[1]}-${csh[2]}`; } 
-            else if (dir) { d.inv = `${dir[1]}-${dir[2]}`; } 
-            else if (oc) { d.inv = oc[0]; } 
+            if (csh) { d.inv = `${csh[1]}-${csh[2]}`; } else if (dir) { d.inv = `${dir[1]}-${dir[2]}`; } else if (oc) { d.inv = oc[0]; } 
             
             if (d.file && (d.inv || d.date)) d.isValid = true; 
             return d; 
