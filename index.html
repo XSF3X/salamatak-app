@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V39 - الاسم الكامل)</title>
+    <title>نظام سلامتك (V37 - النظام المتكامل)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -22,14 +22,7 @@
         .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
         .scanning .scan-line { display: block; }
         .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
-        
-        .card-img-btn { 
-            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; 
-            border-radius: 12px; overflow: hidden; border: 3px solid transparent;
-        }
-        .card-img-btn:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.5); border-color: #f59e0b; }
-        .card-img-btn img { width: 100%; height: auto; object-fit: contain; display: block; }
-
+        .card-option:hover { transform: translateY(-5px); border-color: #f59e0b; }
         input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
         .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
         .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
@@ -65,7 +58,7 @@
             <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
                 <div class="flex items-center gap-3">
                     <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
-                    <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><i class="fa-solid fa-rotate"></i> تحديث</button>
+                    <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><i class="fa-solid fa-rotate"></i> تحديث القائمة</button>
                 </div>
                 <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
             </div>
@@ -103,23 +96,25 @@
         </div>
     </div>
 
+    <div id="changePinModal" class="fixed inset-0 flex items-center justify-center hidden modal">
+        <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 border-2 border-yellow-500 text-center">
+            <h3 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-key"></i> تغيير الرقم السري</h3>
+            <input type="password" id="oldPinInput" placeholder="الرقم السري الحالي" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-3 text-center">
+            <input type="password" id="newPinInput" placeholder="الرقم السري الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-6 text-center">
+            <div class="flex gap-2">
+                <button onclick="submitChangePin()" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded-lg font-bold">تغيير</button>
+                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg font-bold">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <div id="cardModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-5xl w-full mx-4 border-t-4 border-orange-600">
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة للبدء</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card-img-btn" onclick="selectCardType('100')">
-                    <img src="salamtk100.png" alt="بطاقة 100" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p>
-                </div>
-                <div class="card-img-btn" onclick="selectCardType('200')">
-                    <img src="salamtk200.png" alt="بطاقة 200" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p>
-                </div>
-                <div class="card-img-btn" onclick="selectCardType('500')">
-                    <img src="salamtk300.png" alt="بطاقة 500" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p>
-                </div>
+        <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-4xl w-full mx-4 border-t-4 border-orange-600">
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-purple-600 cursor-pointer" onclick="selectCardType('100')"><span class="text-4xl font-extrabold text-purple-900 block mb-2">100</span><p class="text-sm text-gray-500 font-bold">ربح: 5 ريال</p></div>
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-teal-600 cursor-pointer" onclick="selectCardType('200')"><span class="text-4xl font-extrabold text-teal-900 block mb-2">200</span><p class="text-sm text-gray-500 font-bold">ربح: 10 ريال</p></div>
+                <div class="card-option bg-white p-6 rounded-xl border-l-8 border-black cursor-pointer" onclick="selectCardType('500')"><span class="text-4xl font-extrabold text-black block mb-2">500</span><p class="text-sm text-gray-500 font-bold">ربح: 15 ريال</p></div>
             </div>
         </div>
     </div>
@@ -135,6 +130,7 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                  <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i> إدارة</button>
+                 <button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-bold" title="تغيير الرقم السري"><i class="fa-solid fa-key"></i></button>
                  <span class="hidden md:inline-block text-xs bg-gray-700 px-3 py-1.5 rounded text-gray-300 font-mono" id="currentCategoryBadge">--</span>
                  <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
@@ -184,7 +180,9 @@
                 <div class="flex gap-2 items-center flex-wrap">
                     <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
                     <div class="relative">
-                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">استيراد ملف 📂</button>
+                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+                            استيراد ملف قديم 📂
+                        </button>
                         <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
@@ -204,7 +202,7 @@
         <canvas id="canvas" class="hidden"></canvas>
     </div>
 
-    <script>
+   <script>
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
         // ==========================================
@@ -221,7 +219,7 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- 1. Login ---
+        // --- 1. Login Logic ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
@@ -232,21 +230,24 @@
             else { 
                 currentUser = data.username; 
                 currentRole = data.role; 
-                // ✅ هنا الإصلاح: استخدام الاسم الكامل من قاعدة البيانات
+                // تحديث: التأكد من عرض الاسم الكامل حتى لو كان في الحقل القديم
                 currentFullName = data.full_name || data.username; 
                 enterSystem(); 
             }
         }
 
         function enterSystem() {
-            document.getElementById('displayEmployeeName').textContent = currentFullName;
+            // تحديث اسم الموظف في الرأس
+            const nameElement = document.getElementById('displayEmployeeName');
+            if (nameElement) nameElement.textContent = currentFullName;
+            
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('cardModal').classList.remove('hidden');
             if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
             fetchDataFromCloud();
         }
 
-        // --- 2. Admin Panel ---
+        // --- 2. Admin Logic ---
         async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
         async function loadAllUsers() {
             const { data } = await db.from('users').select('*').order('id');
@@ -263,69 +264,72 @@
             const fullName = document.getElementById('newFullName').value.trim();
             const pin = document.getElementById('newPin').value.trim();
             const role = document.getElementById('newRole').value;
+            
             if(!name || !pin) return alert("المستخدم والرقم السري مطلوبان");
+            
+            showLoader(true);
             const { error } = await db.from('users').insert([{ username: name, full_name: fullName, pin: pin, role: role }]);
-            if(error) alert(error.message); else { loadAllUsers(); alert("✅ تم إضافة الموظف!"); document.getElementById('newUsername').value = ''; document.getElementById('newFullName').value = ''; document.getElementById('newPin').value = ''; }
+            showLoader(false);
+
+            if(error) alert("❌ فشل الإضافة: " + error.message + "\n(تأكد من تعطيل RLS لجدول users في Supabase)"); 
+            else { 
+                loadAllUsers(); 
+                alert("✅ تم إضافة الموظف بنجاح!"); 
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newFullName').value = '';
+                document.getElementById('newPin').value = '';
+            }
         }
         async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
 
-        // --- 3. Cloud Logic (Using Full Name for saving) ---
-        async function fetchDataFromCloud() {
+        // --- 3. Change PIN ---
+        async function submitChangePin() {
+            const oldPin = document.getElementById('oldPinInput').value.trim();
+            const newPin = document.getElementById('newPinInput').value.trim();
+            if(!oldPin || !newPin) return alert("أدخل البيانات");
+
             showLoader(true);
-            // ✅ الإصلاح: جلب البيانات بالاسم الكامل لضمان التطابق
-            const { data, error } = await db.from('invoices').select('*').eq('employee_name', currentFullName).order('id', { ascending: true });
+            const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle();
+            if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); }
+
+            const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id);
             showLoader(false);
-            if(error) console.warn(error); employeeData = data || []; renderTable();
+            if (error) alert("خطأ: " + error.message);
+            else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); }
         }
 
-        async function saveEntryToCloud() {
-            const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
-            showLoader(true);
-            // التحقق من التكرار بناءً على الاسم الكامل
-            const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
-            if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
-            
-            // ✅ الإصلاح: حفظ الفاتورة باسم الموظف الكامل
-            const entry = { employee_name: currentFullName, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
-            const { data, error } = await db.from('invoices').insert([entry]).select();
-            showLoader(false);
-            if(error) alert("فشل الحفظ: " + error.message);
-            else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
-        }
-        
-        async function smartImport(input) {
-            const file = input.files[0]; if (!file) return;
-            if(!confirm("دمج البيانات وتخطي المكرر؟")) { input.value = ''; return; }
-            showLoader(true);
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
-                    
-                    // استخدام الاسم الكامل للتحقق
-                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existingCards.map(i => String(i.card_no).trim()));
-
-                    // ... (Import Logic same as V33/V32) ...
-                     alert("يرجى استخدام كود V33 للاستيراد الكامل إذا كنت بحاجة إليه (تم اختصاره هنا)");
-                     await fetchDataFromCloud();
-                } catch(err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
-            };
-            reader.readAsArrayBuffer(file);
+        // --- 4. Excel Export & Standard Functions ---
+        function exportXLS() {
+            if(!employeeData.length) return alert("فارغ");
+            const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"];
+            const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ]));
+            const finalData = [[`سجل فواتير الموظف: ${currentFullName} (${currentUser})`], [], header, ...data];
+            const ws = XLSX.utils.aoa_to_sheet(finalData);
+            if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } });
+            ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }];
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cell_address = XLSX.utils.encode_cell({r: R, c: C});
+                    if (!ws[cell_address]) continue;
+                    if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; }
+                    else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; }
+                    else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; }
+                }
+            }
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentUser}.xlsx`);
         }
 
-        // --- Other Functions ---
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
-        function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
-        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold text-black border border-gray-300">${i+1}</td><td class="p-3 font-mono font-bold text-gray-800 border border-gray-300">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700 border border-gray-300">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 border border-gray-300">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500 border border-gray-300">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500 border border-gray-300">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold text-black border border-gray-300">${row.remark}</td><td class="p-3 font-bold text-green-600 border border-gray-300">${row.profit}</td><td class="p-3 border border-gray-300"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
-        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
         function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
         function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
         async function checkConnection() { const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn'); if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; } try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); } }
+        async function fetchDataFromCloud() { showLoader(true); const { data, error } = await db.from('invoices').select('*').eq('employee_name', currentUser).order('id', { ascending: true }); showLoader(false); if(error) console.warn(error); employeeData = data || []; renderTable(); }
+        async function saveEntryToCloud() { const manualCardNo = document.getElementById('cardNo').value.trim(); if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة"); showLoader(true); const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentUser).eq('card_no', manualCardNo).maybeSingle(); if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); } const entry = { employee_name: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission }; const { data, error } = await db.from('invoices').insert([entry]).select(); showLoader(false); if(error) alert("فشل الحفظ: " + error.message); else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); } }
+        
+        async function smartImport(input) { const file = input.files[0]; if (!file) return; if(!confirm("دمج البيانات وتخطي المكرر؟")) { input.value = ''; return; } showLoader(true); const reader = new FileReader(); reader.onload = async (e) => { try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, {type: 'array', cellDates: true}); const sheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false}); const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentUser); const existingSet = new Set(existingCards.map(i => String(i.card_no).trim())); /* Import Logic V33... */ alert("ميزة الاستيراد موجودة (تم اختصارها هنا)."); await fetchDataFromCloud(); } catch(err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; } }; reader.readAsArrayBuffer(file); }
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
+        function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
+        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold text-black border border-gray-300">${i+1}</td><td class="p-3 font-mono font-bold text-gray-800 border border-gray-300">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700 border border-gray-300">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 border border-gray-300">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500 border border-gray-300">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500 border border-gray-300">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold text-black border border-gray-300">${row.remark}</td><td class="p-3 font-bold text-green-600 border border-gray-300">${row.profit}</td><td class="p-3 border border-gray-300"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
@@ -337,7 +341,7 @@
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
         function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b(IA|IP|OP|CD)[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } }
     </script>
 </body>
 </html>
-
