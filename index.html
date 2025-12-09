@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام سلامتك (V41 - التصحيح والسرعة)</title>
+    <title>نظام سلامتك (V42 - الاستيراد الدقيق)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -43,20 +43,12 @@
     <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
         <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
             <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص...</div>
-            <div class="mb-6 mt-4"><i class="fa-solid fa-shield-halved text-6xl text-orange-500"></i></div>
             <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            
-            <input type="text" id="loginName" placeholder="اسم المستخدم (ID)" 
-                   onkeydown="handleEnter(event, 'loginPin')"
-                   class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center placeholder-gray-400">
-            
+            <input type="text" id="loginName" placeholder="اسم المستخدم (ID)" onkeydown="handleEnter(event, 'loginPin')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center placeholder-gray-400">
             <div class="relative mb-6">
-                <input type="password" id="loginPin" placeholder="الرقم السري" 
-                       onkeydown="handleEnter(event, 'loginBtn')"
-                       class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest placeholder-gray-400">
+                <input type="password" id="loginPin" placeholder="الرقم السري" onkeydown="handleEnter(event, 'loginBtn')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest placeholder-gray-400">
                 <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
             </div>
-            
             <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
             <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
         </div>
@@ -67,52 +59,30 @@
             <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
                 <div class="flex items-center gap-3">
                     <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
-                    <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><i class="fa-solid fa-rotate"></i> تحديث القائمة</button>
+                    <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><i class="fa-solid fa-rotate"></i> تحديث</button>
                 </div>
                 <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
             </div>
-            
             <div class="bg-gray-700 p-5 rounded-xl mb-6 shadow-lg border border-gray-600">
                 <h3 class="text-white font-bold mb-3 text-sm flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> إضافة موظف جديد:</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <input type="text" id="newUsername" placeholder="الرقم الوظيفي (Login ID)" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
-                    <input type="text" id="newFullName" placeholder="الاسم الكامل (للإكسل)" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
+                    <input type="text" id="newUsername" placeholder="الرقم الوظيفي (ID)" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
+                    <input type="text" id="newFullName" placeholder="الاسم الكامل" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
                     <input type="text" id="newPin" placeholder="الرقم السري" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
                     <select id="newRole" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
                         <option value="user">موظف (User)</option>
                         <option value="admin">مشرف (Admin)</option>
                     </select>
                 </div>
-                <button onclick="addNewUser()" class="w-full mt-4 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-md transition transform active:scale-95">
-                    حفظ وإضافة الموظف ✅
-                </button>
+                <button onclick="addNewUser()" class="w-full mt-4 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-md">حفظ وإضافة الموظف ✅</button>
             </div>
-
             <div class="overflow-y-auto flex-1 bg-gray-900 rounded-xl border border-gray-700">
                 <table class="w-full text-center text-sm text-gray-300">
                     <thead class="bg-gray-800 text-gray-200 sticky top-0 shadow-md">
-                        <tr>
-                            <th class="p-4">المستخدم (ID)</th>
-                            <th class="p-4 text-yellow-400">الاسم الكامل</th>
-                            <th class="p-4">PIN</th>
-                            <th class="p-4">الصلاحية</th>
-                            <th class="p-4">إجراء</th>
-                        </tr>
+                        <tr><th class="p-4">المستخدم (ID)</th><th class="p-4 text-yellow-400">الاسم الكامل</th><th class="p-4">PIN</th><th class="p-4">الصلاحية</th><th class="p-4">إجراء</th></tr>
                     </thead>
                     <tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-
-    <div id="changePinModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 border-2 border-yellow-500 text-center">
-            <h3 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-key"></i> تغيير الرقم السري</h3>
-            <input type="password" id="oldPinInput" placeholder="الرقم السري الحالي" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-3 text-center">
-            <input type="password" id="newPinInput" placeholder="الرقم السري الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-6 text-center">
-            <div class="flex gap-2">
-                <button onclick="submitChangePin()" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded-lg font-bold">تغيير</button>
-                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg font-bold">إلغاء</button>
             </div>
         </div>
     </div>
@@ -121,18 +91,9 @@
         <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-5xl w-full mx-4 border-t-4 border-orange-600">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card-img-btn" onclick="selectCardType('100')">
-                    <img src="salamtk100.jpg" alt="بطاقة 100" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p>
-                </div>
-                <div class="card-img-btn" onclick="selectCardType('200')">
-                    <img src="salamtk200.jpg" alt="بطاقة 200" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p>
-                </div>
-                <div class="card-img-btn" onclick="selectCardType('500')">
-                    <img src="salamtk300.jpg" alt="بطاقة 500" class="w-full h-auto rounded-lg shadow-lg">
-                    <p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p>
-                </div>
+                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.jpg" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.jpg" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
+                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.jpg" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
             </div>
         </div>
     </div>
@@ -141,14 +102,10 @@
         <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg flex-wrap gap-2">
             <div class="flex items-center gap-4">
                 <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md"><i class="fa-solid fa-user-check"></i></div>
-                <div>
-                    <p class="text-xs text-gray-400 uppercase">مرحباً</p>
-                    <h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1>
-                </div>
+                <div><p class="text-xs text-gray-400 uppercase">مرحباً</p><h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1></div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i> إدارة</button>
-                 <button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-bold" title="تغيير الرقم السري"><i class="fa-solid fa-key"></i></button>
+                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i></button>
                  <span class="hidden md:inline-block text-xs bg-gray-700 px-3 py-1.5 rounded text-gray-300 font-mono" id="currentCategoryBadge">--</span>
                  <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
@@ -160,7 +117,6 @@
                     <video id="video" autoplay playsinline muted></video>
                     <img id="imagePreview" class="w-full h-full object-contain hidden bg-black">
                     <div class="scan-line"></div>
-                    <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg">📷 الكاميرا</button>
@@ -198,9 +154,7 @@
                 <div class="flex gap-2 items-center flex-wrap">
                     <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
                     <div class="relative">
-                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
-                            استيراد ملف قديم 📂
-                        </button>
+                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">استيراد ملف 📂</button>
                         <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
                     <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
@@ -237,7 +191,7 @@
         let stream = null; let isScanning = false; let scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- 1. Login Logic ---
+        // --- 1. Login ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
@@ -261,30 +215,159 @@
             fetchDataFromCloud();
         }
 
-        // --- 2. Admin Panel ---
-        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
-        async function loadAllUsers() {
-            const { data } = await db.from('users').select('*').order('id');
-            if(data) {
-                const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = '';
-                data.forEach(user => {
-                    const displayName = user.full_name ? user.full_name : '<span class="text-gray-500">-</span>';
-                    tbody.innerHTML += `<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`;
-                });
-            }
-        }
-        async function addNewUser() {
-            const name = document.getElementById('newUsername').value.trim();
-            const fullName = document.getElementById('newFullName').value.trim();
-            const pin = document.getElementById('newPin').value.trim();
-            const role = document.getElementById('newRole').value;
-            if(!name || !pin) return alert("المستخدم والرقم السري مطلوبان");
-            const { error } = await db.from('users').insert([{ username: name, full_name: fullName, pin: pin, role: role }]);
-            if(error) alert(error.message); else { loadAllUsers(); alert("✅ تم!"); document.getElementById('newUsername').value = ''; document.getElementById('newFullName').value = ''; document.getElementById('newPin').value = ''; }
-        }
-        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
+        // --- 2. Smart Import (Full Implementation) ---
+        async function smartImport(input) {
+            const file = input.files[0];
+            if (!file) return;
 
-        // --- 3. Cloud Logic ---
+            if(!confirm("سيتم استيراد الصفوف المكتملة فقط وتجاهل الناقصة. هل أنت متأكد؟")) {
+                input.value = ''; return;
+            }
+
+            showLoader(true);
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+
+                    // 1. جلب البطاقات الموجودة (للموظف الحالي فقط) لتجنب التكرار
+                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
+                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
+
+                    // 2. تحديد الأعمدة (Mapping)
+                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
+                    let headerRowIndex = -1;
+
+                    // البحث عن صف العناوين
+                    for(let i=0; i<Math.min(20, jsonData.length); i++) {
+                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                        if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
+                            headerRowIndex = i;
+                            const header = jsonData[i].map(h => String(h).toUpperCase().trim());
+                            header.forEach((h, idx) => {
+                                if(h.includes("CARD")) colMap.card = idx;
+                                if(h.includes("NAME") || h.includes("PATIENT")) colMap.name = idx;
+                                if(h.includes("FILE")) colMap.file = idx;
+                                if(h.includes("INV")) colMap.inv = idx;
+                                if(h.includes("DATE")) colMap.date = idx;
+                                if(h.includes("REMARK")) colMap.remark = idx;
+                                if(h.includes("PROFIT")) colMap.profit = idx;
+                            });
+                            break;
+                        }
+                    }
+
+                    const entriesToUpload = [];
+                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
+                    let skippedCount = 0;
+                    let duplicatesCount = 0;
+
+                    for (let i = startRow; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+
+                        let entry = { 
+                            employee_name: currentFullName, // ربط بالاسم الكامل
+                            remark: '100', 
+                            profit: 5,
+                            card_no: '',
+                            patient_name: '',
+                            file_no: '',
+                            inv_no: '',
+                            inv_date: ''
+                        };
+                        
+                        // استخراج البيانات
+                        if (headerRowIndex !== -1) {
+                            if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                            if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                            if (colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                            if (colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                            if (colMap.date > -1) {
+                                let dVal = row[colMap.date];
+                                if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); 
+                                else entry.inv_date = String(dVal || '').trim();
+                            }
+                            if (colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if (colMap.profit > -1) entry.profit = row[colMap.profit];
+                        } 
+                        else {
+                            // تخمين
+                            row.forEach(cell => {
+                                let s = String(cell).trim();
+                                if(!s) return;
+                                if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s;
+                                else if((s.includes('-') || s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(['100','200','500'].includes(s)) entry.remark = s;
+                                else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s;
+                                else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
+                            });
+                        }
+
+                        // تصحيح الأرباح
+                        if (!entry.profit || entry.profit == 0) {
+                            entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+                        }
+
+                        // 🔥 التحقق من الاكتمال (Validation) 🔥
+                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        // 🔥 التحقق من التكرار 🔥
+                        if (existingSet.has(entry.card_no)) {
+                            duplicatesCount++;
+                            continue;
+                        }
+
+                        entriesToUpload.push(entry);
+                        existingSet.add(entry.card_no);
+                    }
+
+                    if(entriesToUpload.length > 0) {
+                        const { error } = await db.from('invoices').insert(entriesToUpload);
+                        if(error) alert("حدث خطأ أثناء الحفظ في قاعدة البيانات: " + error.message);
+                        else {
+                            let msg = `✅ تم استيراد ${entriesToUpload.length} صف بنجاح.`;
+                            if(skippedCount > 0) msg += `\n⚠️ تم تجاهل ${skippedCount} صف لعدم اكتمال البيانات.`;
+                            if(duplicatesCount > 0) msg += `\n🚫 تم تجاهل ${duplicatesCount} صف لوجودها مسبقاً.`;
+                            alert(msg);
+                            await fetchDataFromCloud();
+                        }
+                    } else {
+                        let msg = "لم يتم استيراد أي بيانات.";
+                        if(skippedCount > 0) msg += `\n(وجدنا ${skippedCount} صفوف ناقصة البيانات)`;
+                        if(duplicatesCount > 0) msg += `\n(وجدنا ${duplicatesCount} صفوف مكررة)`;
+                        alert(msg);
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    alert("خطأ في معالجة الملف: " + err.message);
+                } finally {
+                    showLoader(false);
+                    input.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- Standard Functions (Connection, Fetch, Save...) ---
+        function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
+        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
+
+        async function checkConnection() {
+            const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn');
+            if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; }
+            try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); }
+        }
+
         async function fetchDataFromCloud() {
             showLoader(true);
             const { data, error } = await db.from('invoices').select('*').eq('employee_name', currentFullName).order('id', { ascending: true });
@@ -304,39 +387,18 @@
             if(error) alert("فشل الحفظ: " + error.message);
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
-
-        // --- Smart Import ---
-        async function smartImport(input) {
-            const file = input.files[0]; if (!file) return;
-            if(!confirm("دمج البيانات وتخطي المكرر؟")) { input.value = ''; return; }
-            showLoader(true);
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
-                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existingCards.map(i => String(i.card_no).trim()));
-                    // ... (Import Logic truncated) ...
-                    alert("الميزة مفعلة");
-                    await fetchDataFromCloud();
-                } catch(err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
+        
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
+        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ const displayName=user.full_name?user.full_name:'-'; tbody.innerHTML+=`<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3"><button onclick="deleteUser(${user.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
+        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const fullName=document.getElementById('newFullName').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("مطلوب"); const {error}=await db.from('users').insert([{username:name,full_name:fullName,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); document.getElementById('newUsername').value=''; document.getElementById('newFullName').value=''; document.getElementById('newPin').value=''; } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
         async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
 
-        // --- Select Card Type (Corrected Logic) ---
         function selectCardType(v) { 
             currentCardValue=v; 
-            // 🔥 تصحيح احتساب العمولة 🔥
             if(v === '100') currentCommission = 5;
             else if(v === '200') currentCommission = 10;
             else if(v === '500') currentCommission = 15;
-            
             document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; 
             document.getElementById('cardModal').classList.add('hidden'); 
             document.getElementById('mainContent').classList.remove('hidden'); 
@@ -344,23 +406,19 @@
             document.getElementById('cardNo').focus(); 
         }
 
-        // --- Other Functions ---
-        function handleEnter(e, nextId) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (nextId === 'loginBtn') {
-                    document.getElementById('loginBtn').click();
-                } else {
-                    document.getElementById(nextId).focus();
-                }
-            }
+        function exportXLS() {
+            if(!employeeData.length) return alert("فارغ");
+            const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"];
+            const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ]));
+            const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data];
+            const ws = XLSX.utils.aoa_to_sheet(finalData);
+            if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } });
+            ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }];
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } }
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`);
         }
-        
-        // ... (Export, Update Date, Connection Check, etc. same as before) ...
-        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
-        function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
-        async function checkConnection() { const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn'); if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; } try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); } }
-        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
+
         function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-orange-100 font-bold text-black border border-gray-300">${i+1}</td><td class="p-3 font-mono font-bold text-gray-800 border border-gray-300">${row.card_no}</td><td class="p-3 text-right font-bold text-gray-700 border border-gray-300">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 border border-gray-300">${row.file_no}</td><td class="p-3 font-mono text-xs text-red-500 border border-gray-300">${row.inv_no}</td><td class="p-3 font-mono text-xs text-gray-500 border border-gray-300">${row.inv_date}</td><td class="p-3 bg-yellow-100 font-bold text-black border border-gray-300">${row.remark}</td><td class="p-3 font-bold text-green-600 border border-gray-300">${row.profit}</td><td class="p-3 border border-gray-300"><button onclick="deleteFromCloud(${row.id})" class="text-red-400"><i class="fa-solid fa-trash-can"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
