@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8" />
@@ -674,11 +674,12 @@ async function handleFile(input) {
 </script>
 <!-- Part 4 — Supabase + Saving + Import + Table -->
 <script>
-/* ================================
-   1) SUPABASE CONNECTION
-================================ */
-const SUPABASE_URL = "YOUR_URL";
-const SUPABASE_KEY = "YOUR_KEY";
+        // ==========================================
+        // 🔴 هام: استبدل الرابط والمفتاح هنا
+        // ==========================================
+        const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
+        // ==========================================
 
 let db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -1021,3 +1022,4 @@ async function submitChangePin() {
 </script>
 </body>
 </html>
+
