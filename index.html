@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V66 - المصفاة الذكية)</title>
+    <title>SALAMTK (V67 - الإصلاح النهائي)</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -254,127 +254,17 @@
         // --- 3. Save Entry ---
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            const pName = document.getElementById('pName').value.trim();
-            const fileNo = document.getElementById('fileNo').value.trim();
-            const invNo = document.getElementById('invNo').value.trim();
-            const pDate = document.getElementById('pDate').value.trim();
-
-            if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
-                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة.");
-            }
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
 
             showLoader(true);
             const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
             if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
-            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: pName, file_no: fileNo, inv_no: invNo, inv_date: pDate, remark: currentCardValue, profit: currentCommission };
+            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
             const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
             if(error) alert("فشل الحفظ: " + error.message);
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
-        }
-
-        // --- 4. Smart Import (Strict & Clean) ---
-        async function smartImport(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            if(!confirm("سيتم استيراد البيانات المكتملة فقط. موافق؟")) { input.value = ''; return; }
-
-            showLoader(true);
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
-
-                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
-
-                    let headerRowIndex = -1;
-                    for(let i=0; i<Math.min(20, jsonData.length); i++) {
-                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
-                        if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
-                            headerRowIndex = i; break;
-                        }
-                    }
-
-                    const entriesToUpload = [];
-                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
-                    let skippedCount = 0;
-                    let duplicatesCount = 0;
-                    let successCount = 0;
-
-                    for (let i = startRow; i < jsonData.length; i++) {
-                        const row = jsonData[i];
-                        if (!row || row.length === 0) continue;
-
-                        let entry = { 
-                            employee_name: currentFullName, employee_id: currentUser,
-                            remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
-                        };
-                        
-                        Object.values(row).forEach(v => {
-                            let s = String(v).trim();
-                            // Clean Invoice
-                            if(s.includes('CSH') || s.includes('-')) {
-                                s = s.replace(/CSH[\W_]*/i, '').trim(); 
-                                if(/\d/.test(s)) entry.inv_no = s;
-                            }
-                            else if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
-                            else if(s.endsWith('L')) entry.file_no = s;
-                            else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
-                            else if(['100','200','500'].includes(s)) {
-                                entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5);
-                            }
-                            // Clean Name
-                            else if(s.length > 2 && !/\d/.test(s)) {
-                                if(!s.match(/CASH|CREDIT|Inv|Payment|User|Emp/i)) entry.patient_name = s;
-                            }
-                        });
-
-                        // Strict Filter
-                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
-                            skippedCount++; continue; 
-                        }
-
-                        if (existingSet.has(entry.card_no)) {
-                            duplicatesCount++; continue;
-                        }
-
-                        entriesToUpload.push(entry);
-                        existingSet.add(entry.card_no);
-                        successCount++;
-                    }
-
-                    if(entriesToUpload.length > 0) {
-                        const { error } = await db.from('invoices').insert(entriesToUpload);
-                        if(error) alert("خطأ: " + error.message);
-                        else { 
-                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`); 
-                            await fetchDataFromCloud(); 
-                        }
-                    } else {
-                        alert(`❌ لم يتم استيراد أي بيانات!\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`);
-                    }
-
-                } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // --- Other Functions ---
-        async function fetchDataFromCloud() {
-            showLoader(true);
-            const { data, error } = await db.from('invoices')
-                .select('*')
-                .or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`)
-                .order('id', { ascending: true });
-            
-            showLoader(false);
-            if(error) console.warn(error); employeeData = data || []; renderTable();
         }
 
         async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
@@ -401,7 +291,7 @@
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
         function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
         
-        // 🔥 OCR Logic V66 (Final Cleaning) 🔥
+        // 🔥 OCR Logic V67 (Pattern Correction) 🔥
         function extractData(text) { 
             const lines = text.split('\n'); 
             let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
@@ -414,10 +304,10 @@
                 d.file = raw.toUpperCase();
             } 
             
-            // Name (Cleaned)
+            // Name
             if (d.file) { 
                 const l = lines.find(line => line.includes(fm[0])); 
-                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
+                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
             } 
             
             // Date (V51 Logic)
@@ -429,16 +319,43 @@
             } 
             if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
             
-            // Invoice (V66: Clean CSH)
-            const csh = text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); 
-            const dir = text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); 
-            const oc = text.match(/OC[-_]([A-Z0-9]+)/); 
-            if (csh) d.inv = `${csh[1]}-${csh[2]}`; else if (dir) d.inv = `${dir[1]}-${dir[2]}`; else if (oc) d.inv = oc[0]; 
+            // Invoice (V67: Strict Pattern Matching & Correction)
+            // It looks for 2 letters/numbers followed by a dash
+            const invRegex = /\b([A-Z0-9]{2})[-_ ]+(\d+[A-Z]?)\b/i;
+            const invMatch = text.match(invRegex);
+
+            if (invMatch) {
+                let prefix = invMatch[1].toUpperCase();
+                let number = invMatch[2];
+                
+                // Correction logic: If prefix is 00, O0, 0O -> make it OO
+                if (prefix === '00' || prefix === '0O' || prefix === 'O0') prefix = 'OO';
+                // You can add more rules, e.g., if prefix starts with 0 -> O
+                else if (prefix.startsWith('0')) prefix = 'O' + prefix[1];
+
+                d.inv = `${prefix}-${number}`;
+            }
             
             if (d.file && (d.inv || d.date)) d.isValid = true; 
             return d; 
         }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        
+        async function fetchDataFromCloud() {
+            showLoader(true);
+            const { data, error } = await db.from('invoices')
+                .select('*')
+                .or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`)
+                .order('id', { ascending: true });
+            
+            showLoader(false);
+            if(error) console.warn(error); 
+            employeeData = data || [];
+            renderTable();
+        }
+
+        async function resetUserPin(id) { const newP = prompt("الرقم الجديد:"); if(newP) { await db.from('users').update({pin: newP}).eq('id', id); loadAllUsers(); alert("تم"); } }
+        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
     </script>
 </body>
 </html>
