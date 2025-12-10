@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V71 - فلتر الزمن)</title>
+    <title>SALAMTK (V73 - المتكامل السريع)</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,12 +24,23 @@
         .card-select:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .card-select img { border-radius: 8px; width: 100%; height: auto; }
         input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+        
+        /* Camera Styling */
         .camera-container { position: relative; width: 100%; height: 350px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-box { position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 10; pointer-events: none; }
+        
+        .scan-box {
+            position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%;
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            pointer-events: none;
+        }
         .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
         .scanning .scan-line { display: block; }
+        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.95); }
         @keyframes scan { 0% { top: 20%; opacity: 0; } 50% { opacity: 1; } 100% { top: 80%; opacity: 0; } }
     </style>
@@ -270,199 +281,169 @@
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
 
-        // --- 4. Smart Import (Strict & Report) ---
+        // --- 4. Smart Import (Faster & Accurate) ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
 
-            if(!confirm("سيتم استيراد البيانات المكتملة فقط. موافق؟")) { input.value = ''; return; }
+            if (!confirm("سيتم استيراد الصفوف المكتملة فقط وتجاهل المكرر. موافق؟")) {
+                input.value = '';
+                return;
+            }
 
             showLoader(true);
             const reader = new FileReader();
+
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
+                    const { data: existingData, error } = await db
+                        .from('invoices')
+                        .select('inv_no')
+                        .eq('employee_id', currentUser);
 
-                    let headerRowIndex = -1;
-                    for(let i=0; i<Math.min(20, jsonData.length); i++) {
-                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
-                        if(rowStr.includes("CARD") && (rowStr.includes("PATIENT") || rowStr.includes("NAME"))) { 
-                            headerRowIndex = i; break; 
+                    if (error) throw error;
+
+                    const existingSet = new Set(existingData ? existingData.map(i => String(i.inv_no).trim()) : []);
+
+                    let imported = 0;
+                    let duplicates = 0;
+                    let missing = 0;
+                    const rowsToInsert = [];
+
+                    for (let r of jsonData) {
+                        let card = r["CARD NO"] || r["card_no"];
+                        let name = r["PATIENT NAME"] || r["patient_name"];
+                        let fileNo = r["FILE NO."] || r["file_no"];
+                        let invNo = r["INV. NO."] || r["inv_no"];
+                        let date = r["DATE"] || r["inv_date"];
+                        let remark = r["REMARK"] || "100";
+                        let profit = r["PROFIT (SAR)"] || r["profit"];
+
+                        // Clean Data
+                        card = card ? String(card).trim() : "";
+                        invNo = invNo ? String(invNo).trim() : "";
+                        fileNo = fileNo ? String(fileNo).trim() : "";
+                        name = name ? String(name).trim() : "";
+
+                        // Handle Profit Logic if missing
+                        if(!profit) {
+                            if(remark == '500') profit = 15;
+                            else if(remark == '200') profit = 10;
+                            else profit = 5;
                         }
+
+                        if (!invNo || !fileNo || !card || !name) {
+                            missing++;
+                            continue;
+                        }
+
+                        if (existingSet.has(invNo)) {
+                            duplicates++;
+                            continue;
+                        }
+
+                        let finalDate = date;
+                        if (date instanceof Date) {
+                            finalDate = date.toLocaleDateString('en-GB');
+                        }
+
+                        rowsToInsert.push({
+                            employee_name: currentFullName,
+                            employee_id: currentUser,
+                            card_no: card,
+                            patient_name: name,
+                            file_no: fileNo,
+                            inv_no: invNo,
+                            inv_date: finalDate,
+                            remark: String(remark),
+                            profit: profit
+                        });
+
+                        existingSet.add(invNo);
+                        imported++;
                     }
 
-                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
+                    if (rowsToInsert.length > 0) {
+                        const { error: insertError } = await db.from("invoices").insert(rowsToInsert);
+                        if (insertError) throw insertError;
+                    }
+
+                    showLoader(false);
                     
-                    if(headerRowIndex > -1) {
-                         const header = jsonData[headerRowIndex].map(h => String(h).toUpperCase().trim());
-                         header.forEach((h, idx) => {
-                            if(h.includes("CARD")) colMap.card = idx;
-                            if(h.includes("PATIENT")) colMap.name = idx;
-                            else if(h.includes("NAME") && !h.includes("EMP") && !h.includes("USER") && colMap.name === -1) colMap.name = idx;
-                            if(h.includes("FILE")) colMap.file = idx;
-                            if(h.includes("INV")) colMap.inv = idx;
-                            if(h.includes("DATE")) colMap.date = idx;
-                            if(h.includes("REMARK")) colMap.remark = idx;
-                            if(h.includes("PROFIT")) colMap.profit = idx;
-                        });
-                    }
+                    alert(
+                        `📊 تقرير الاستيراد:\n` +
+                        `✅ تم إضافة: ${imported}\n` +
+                        `⛔ مكرر (تم رفضه): ${duplicates}\n` +
+                        `⚠️ ناقص بيانات: ${missing}`
+                    );
 
-                    const entriesToUpload = [];
-                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
-                    let skippedCount = 0;
-                    let duplicatesCount = 0;
-                    let successCount = 0;
+                    fetchDataFromCloud();
 
-                    for (let i = startRow; i < jsonData.length; i++) {
-                        const row = jsonData[i];
-                        if (!row || row.length === 0) continue;
-
-                        let entry = { 
-                            employee_name: currentFullName, employee_id: currentUser,
-                            remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
-                        };
-                        
-                        Object.values(row).forEach(v => {
-                            let s = String(v).trim();
-                            if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
-                            else if(s.endsWith('L')) entry.file_no = s;
-                            else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
-                            else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
-                            else if(s.length > 2 && !/\d/.test(s) && !['100','200','500'].includes(s) && !s.includes('-')) entry.patient_name = s;
-                            else if(['100','200','500'].includes(s)) {
-                                entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5);
-                            }
-                        });
-
-                        if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
-
-                        // Strict Filter
-                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
-                            skippedCount++; continue; 
-                        }
-
-                        if (existingSet.has(entry.card_no)) {
-                            duplicatesCount++; continue;
-                        }
-
-                        entriesToUpload.push(entry);
-                        existingSet.add(entry.card_no);
-                        successCount++;
-                    }
-
-                    if(entriesToUpload.length > 0) {
-                        const { error } = await db.from('invoices').insert(entriesToUpload);
-                        if(error) alert("خطأ: " + error.message);
-                        else { 
-                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`); 
-                            await fetchDataFromCloud(); 
-                        }
-                    } else {
-                        alert(`❌ لم يتم استيراد أي بيانات!\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`);
-                    }
-
-                } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
+                } catch (err) {
+                    console.error(err);
+                    showLoader(false);
+                    alert("خطأ في معالجة الملف: " + err.message);
+                } finally {
+                    input.value = '';
+                }
             };
+
             reader.readAsArrayBuffer(file);
         }
 
-        // --- OCR Logic ---
-        async function startLiveScan() {
-            try {
-                document.getElementById('imagePreview').classList.add('hidden');
-                video.classList.remove('hidden');
-                document.getElementById('cameraBox').classList.add('scanning');
-                document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جارٍ المسح...</span>";
-                
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream; video.play();
-                
-                const t = stream.getVideoTracks()[0];
-                if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden');
-                isScanning = true; scanInterval = setInterval(processFrame, 1500);
-            } catch(e) { alert("خطأ: " + e.message); }
-        }
-
-        function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
-
-        async function processFrame() {
-            if(!isScanning) return;
-            const ctx = document.createElement('canvas').getContext('2d');
-            ctx.canvas.width = video.videoWidth; ctx.canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            
-            ctx.canvas.toBlob(blob => {
-                Tesseract.recognize(blob, 'eng').then(({ data: { text } }) => {
-                    const data = extractData(text);
-                    if(data.isValid) {
-                        stopCamera();
-                        cameraBox.classList.remove('scanning'); cameraBox.classList.add('success');
-                        document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>";
-                        fillForm(data);
-                    }
-                });
-            }, 'image/jpeg', 0.8);
-        }
-
-        async function toggleFlash() { if(stream) { const t=stream.getVideoTracks()[0]; await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } }
-
-        // 🔥 OCR Extraction Logic V71 (Year Filter) 🔥
-        function extractData(text) {
-            const lines = text.split('\n');
-            let d = { file: '', name: '', date: '', inv: '', isValid: false };
-            
+        // --- 5. OCR Logic (Smart V72) ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
+        function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
+        async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
+        async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        
+        // V72 Logic
+        function extractData(text) { 
+            const lines = text.split('\n'); 
+            let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
             const fm = text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); 
-            if (fm) {
+            if (fm) { 
                 let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L');
                 if (!raw.toUpperCase().endsWith('L')) raw += 'L';
                 d.file = raw.toUpperCase();
+            } 
+            if (d.file) { 
+                const l = lines.find(line => line.includes(fm[0])); 
+                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
+            } 
+            const invMatch = text.match(/\b([0OA-Z]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
+            if (invMatch) {
+                let prefix = invMatch[1].toUpperCase();
+                if(prefix.startsWith('0')) prefix = 'O' + prefix[1];
+                if(prefix === '00' || prefix === '0O') prefix = 'OO';
+                d.inv = `${prefix}-${invMatch[2]}`;
             }
-
-            if (d.file) {
-                const l = lines.find(line => line.includes(fm ? fm[0] : ''));
-                if (l) d.name = l.replace(fm ? fm[0] : '', '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|\d/gi, '').replace(/[^\w\s]/g, '').trim();
-            }
-
-            const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
-            if (invMatch) d.inv = `${invMatch[1]}-${invMatch[2]}`;
-
-            // Date Logic (V71: 2025+ Filter)
-            for (let l of lines) {
-                let lower = l.toLowerCase();
-                if (lower.includes('birth') || lower.includes('dob')) continue;
-                
-                const m = l.match(/(\d{1,2}[-_. /]*[A-Za-z]{3}[-_. /]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
+            for (let l of lines) { 
+                let c = l.toLowerCase(); 
+                if (c.includes('birth')||c.includes('dob')||c.includes('gender')) continue; 
+                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
                 if (m) {
-                    // Check Year
                     const yearStr = m[0].match(/\d{4}/);
-                    if(yearStr) {
-                        const year = parseInt(yearStr[0]);
-                        if(year >= 2025) {
-                            d.date = m[0].replace(/[\s/.]/g, '-');
-                            break;
-                        }
+                    if(yearStr && parseInt(yearStr[0]) >= 2025) {
+                        d.date = m[0].replace(/[\s/.]/g, '-');
+                        break; 
                     }
                 }
-            }
-
-            if (d.file && (d.inv || d.date)) d.isValid = true;
-            return d;
+            } 
+            if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
+            
+            if (d.file && (d.inv || d.date)) d.isValid = true; 
+            return d; 
         }
-
-        function fillForm(d) {
-            if(d.file) document.getElementById('fileNo').value = d.file;
-            if(d.name) document.getElementById('pName').value = d.name;
-            if(d.date) document.getElementById('pDate').value = d.date;
-            if(d.inv) document.getElementById('invNo').value = d.inv;
-        }
-
-        // --- Other Functions ---
+        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        
         async function fetchDataFromCloud() {
             showLoader(true);
             const { data, error } = await db.from('invoices')
@@ -471,7 +452,9 @@
                 .order('id', { ascending: true });
             
             showLoader(false);
-            if(error) console.warn(error); employeeData = data || []; renderTable();
+            if(error) console.warn(error); 
+            employeeData = data || [];
+            renderTable();
         }
 
         async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
