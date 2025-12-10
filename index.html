@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V69 - القناص)</title>
+    <title>SALAMTK (V70 - المصحح)</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,19 +24,23 @@
         .card-select:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .card-select img { border-radius: 8px; width: 100%; height: auto; }
         input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+        
         .camera-container { position: relative; width: 100%; height: 350px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        /* Box Overlay for Scanning */
+        
+        /* Scan Box Overlay */
         .scan-box {
             position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%;
-            border: 2px dashed rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* Dimming outside */
             z-index: 10;
+            pointer-events: none;
         }
-        .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
+        .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
         .scanning .scan-line { display: block; }
+        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.95); }
         @keyframes scan { 0% { top: 20%; opacity: 0; } 50% { opacity: 1; } 100% { top: 80%; opacity: 0; } }
     </style>
@@ -139,8 +143,11 @@
             <div>
                 <div id="cameraBox" class="camera-container scanning mb-4 shadow-2xl bg-black relative">
                     <video id="video" autoplay playsinline muted></video>
-                    <div class="scan-box"></div> <div class="scan-line"></div>
-                    <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-center font-bold" id="statusText"><span class="text-gray-300">وجه الكاميرا على الفاتورة...</span></div>
+                    <img id="imagePreview" class="w-full h-full object-contain hidden bg-black absolute top-0 left-0 z-20">
+                    
+                    <div class="scan-box"></div> 
+                    <div class="scan-line"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-center font-bold text-white backdrop-blur-sm z-30" id="statusText">جاهز للمسح...</div>
                 </div>
                 
                 <button id="restartScanBtn" onclick="restartScan()" class="hidden mb-4 w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
@@ -148,7 +155,7 @@
                 </button>
 
                 <div class="grid grid-cols-3 gap-3 mb-6">
-                    <button onclick="startLiveScan()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 تشغيل</button>
+                    <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
                     <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
                     <div class="relative col-span-1">
                         <button onclick="document.getElementById('fileIn').click()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl shadow-lg">📂 ملف</button>
@@ -160,7 +167,7 @@
             <div class="bg-gray-800 rounded-2xl p-6 text-white shadow-2xl h-fit border border-gray-700">
                 <div class="mb-4">
                     <label class="text-xs font-bold text-orange-400 uppercase mb-1 block">رقم البطاقة</label>
-                    <input type="text" id="cardNo" placeholder="---" class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500 transition">
+                    <input type="text" id="cardNo" placeholder="الرقم..." class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500 transition">
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-bold text-sm text-gray-200 focus:bg-gray-900 transition"></div>
@@ -228,7 +235,7 @@
         let currentUser = null, currentRole = 'user', currentFullName = '';
         let employeeData = [], currentCardValue = '', currentCommission = 0;
         let stream = null, isScanning = false, scanInterval = null;
-        const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
+        const video = document.getElementById('video'); const canvas = document.createElement('canvas'); // Virtual canvas
 
         // --- 1. Login ---
         async function loginSystem() {
@@ -299,7 +306,6 @@
                     const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
 
                     let headerRowIndex = -1;
-                    // Find header logic
                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
                         const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
                         if(rowStr.includes("CARD") && (rowStr.includes("PATIENT") || rowStr.includes("NAME"))) { 
@@ -396,14 +402,14 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- OCR LOGIC (The Sniper) ---
+        // --- OCR Logic ---
         async function startLiveScan() {
             try {
                 document.getElementById('imagePreview').classList.add('hidden');
                 video.classList.remove('hidden');
-                cameraBox.classList.add('scanning'); cameraBox.classList.remove('success');
+                document.getElementById('cameraBox').classList.add('scanning');
                 document.getElementById('restartScanBtn').classList.add('hidden');
-                document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جاهز...</span>";
+                document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جارٍ المسح...</span>";
                 
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 video.srcObject = stream; video.play();
@@ -428,7 +434,8 @@
                     const data = extractData(text);
                     if(data.isValid) {
                         stopCamera();
-                        cameraBox.classList.remove('scanning'); cameraBox.classList.add('success');
+                        document.getElementById('cameraBox').classList.remove('scanning');
+                        document.getElementById('cameraBox').classList.add('success');
                         document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>";
                         document.getElementById('restartScanBtn').classList.remove('hidden');
                         fillForm(data);
@@ -439,12 +446,11 @@
 
         async function toggleFlash() { if(stream) { const t=stream.getVideoTracks()[0]; await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } }
 
-        // 🔥 OCR Extraction Logic (V69) 🔥
+        // 🔥 OCR Extraction Logic 🔥
         function extractData(text) {
             const lines = text.split('\n');
             let d = { file: '', name: '', date: '', inv: '', isValid: false };
             
-            // 1. File
             const fm = text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); 
             if (fm) {
                 let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L');
@@ -452,17 +458,14 @@
                 d.file = raw.toUpperCase();
             }
 
-            // 2. Name
             if (d.file) {
                 const l = lines.find(line => line.includes(fm[0]));
-                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|\d/gi, '').replace(/[^\w\s]/g, '').trim();
+                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim();
             }
 
-            // 3. Invoice
             const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
             if (invMatch) d.inv = `${invMatch[1]}-${invMatch[2]}`;
 
-            // 4. Date
             for (let l of lines) {
                 let lower = l.toLowerCase();
                 if (lower.includes('birth') || lower.includes('dob')) continue;
@@ -475,8 +478,7 @@
             }
             if (!d.date) { const m2 = text.match(/(\d{2}[-][A-Z]{3}[-]\d{4})/i); if (m2) d.date = m2[0]; }
 
-            // Triple Check
-            if (d.file && (d.inv || d.date) && d.name.length > 3) d.isValid = true;
+            if (d.file && (d.inv || d.date)) d.isValid = true;
             return d;
         }
 
@@ -515,8 +517,17 @@
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
         function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
         function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
-        async function resetUserPin(id) { const newP = prompt("الرقم الجديد:"); if(newP) { await db.from('users').update({pin: newP}).eq('id', id); loadAllUsers(); alert("تم"); } }
-        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
+        
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
+        function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
+        async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
+        async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        
+        // V66 Logic
+        function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); if(fm) { let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L'); if (!raw.toUpperCase().endsWith('L')) raw += 'L'; d.file = raw.toUpperCase(); } if (d.file) { const l = lines.find(line => line.includes(fm[0])); if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob')||c.includes('gender'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
+        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
     </script>
 </body>
 </html>
