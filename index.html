@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V64 - التقرير الشفاف)</title>
-    
+    <title>SALAMTK (V65 - الاستيراد المضمون)</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -199,7 +199,7 @@
             <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-center text-white">
             <div class="flex gap-2">
                 <button onclick="submitChangePin()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg w-full font-bold">حفظ</button>
-                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg w-full font-bold">إلغاء</button>
+                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg font-bold">إلغاء</button>
             </div>
         </div>
     </div>
@@ -227,28 +227,21 @@
             showLoader(false);
             if (error || !data) showError("❌ خطأ في الاسم أو الرقم السري");
             else { 
-                currentUser = data.username; 
-                currentRole = data.role; 
-                currentFullName = data.full_name;
-                
-                if (!currentFullName) {
-                    alert("⚠️ تنبيه: اسمك الكامل غير مسجل في النظام.");
-                    // يمكن السماح بالدخول لكن مع تنبيه
-                }
-                
+                currentUser = data.username; currentRole = data.role; currentFullName = data.full_name;
+                if (!currentFullName) { alert("⚠️ الاسم الكامل غير مسجل!"); return; }
                 enterSystem(); 
             }
         }
 
         function enterSystem() {
-            document.getElementById('displayEmployeeName').textContent = currentFullName || currentUser;
+            document.getElementById('displayEmployeeName').textContent = currentFullName;
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('cardModal').classList.remove('hidden');
             if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
             fetchDataFromCloud();
         }
 
-        // --- 2. Smart Import (Strict & Report) ---
+        // --- 2. Smart Import (Strict Patient Name Logic) ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
@@ -264,15 +257,35 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
 
-                    // جلب البطاقات الموجودة (للموظف الحالي)
                     const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
+                    const existingSet = new Set(existingCards.map(i => String(i.card_no).trim()));
 
                     let headerRowIndex = -1;
-                    // Find header row logic...
-                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
+                    // Find Header (Prioritize PATIENT)
+                    for(let i=0; i<Math.min(20, jsonData.length); i++) {
                         const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
-                        if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) { headerRowIndex = i; break; }
+                        if(rowStr.includes("PATIENT") || (rowStr.includes("CARD") && rowStr.includes("NAME"))) { 
+                            headerRowIndex = i; break; 
+                        }
+                    }
+
+                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
+                    
+                    // Map Columns if header found
+                    if(headerRowIndex > -1) {
+                         const header = jsonData[headerRowIndex].map(h => String(h).toUpperCase().trim());
+                         header.forEach((h, idx) => {
+                            if(h.includes("CARD")) colMap.card = idx;
+                            // 🔥 Logic to avoid EMPLOYEE NAME 🔥
+                            if(h.includes("PATIENT")) colMap.name = idx;
+                            else if(h.includes("NAME") && !h.includes("EMP") && !h.includes("USER") && colMap.name === -1) colMap.name = idx;
+                            
+                            if(h.includes("FILE")) colMap.file = idx;
+                            if(h.includes("INV")) colMap.inv = idx;
+                            if(h.includes("DATE")) colMap.date = idx;
+                            if(h.includes("REMARK")) colMap.remark = idx;
+                            if(h.includes("PROFIT")) colMap.profit = idx;
+                        });
                     }
 
                     const entriesToUpload = [];
@@ -290,29 +303,45 @@
                             remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
                         };
                         
-                        // Extract data logic (simplified fallback)
-                        Object.values(row).forEach(v => {
-                            let s = String(v).trim();
-                            if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
-                            else if(s.endsWith('L')) entry.file_no = s;
-                            else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
-                            else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
-                            else if(s.length > 5 && !/\d/.test(s)) entry.patient_name = s;
-                            else if(['100','200','500'].includes(s)) {
-                                entry.remark = s; 
-                                entry.profit = s==='500'?15 : (s==='200'?10 : 5);
+                        if (headerRowIndex !== -1) {
+                            if(colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                            if(colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                            if(colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                            if(colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                            if(colMap.date > -1) {
+                                let dVal = row[colMap.date];
+                                if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); 
+                                else entry.inv_date = String(dVal || '').trim();
                             }
-                        });
+                            if(colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if(colMap.profit > -1) entry.profit = row[colMap.profit];
+                        } 
+                        else {
+                            // Fallback Logic (Revised for Names)
+                            Object.values(row).forEach(v => {
+                                let s = String(v).trim();
+                                if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(s.endsWith('L')) entry.file_no = s;
+                                else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
+                                // 🔥 New Name Logic: > 2 chars, no numbers, no invoice/date format 🔥
+                                else if(s.length > 2 && !/\d/.test(s) && !s.includes('-') && !['100','200','500'].includes(s)) entry.patient_name = s;
+                                else if(['100','200','500'].includes(s)) {
+                                    entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5);
+                                }
+                            });
+                        }
 
-                        // 🔥 Strict Filter 🔥
+                        // Correction
+                        if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+
+                        // Filter
                         if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
-                            skippedCount++;
-                            continue; 
+                            skippedCount++; continue; 
                         }
 
                         if (existingSet.has(entry.card_no)) {
-                            duplicatesCount++;
-                            continue;
+                            duplicatesCount++; continue;
                         }
 
                         entriesToUpload.push(entry);
@@ -324,7 +353,7 @@
                         const { error } = await db.from('invoices').insert(entriesToUpload);
                         if(error) alert("خطأ: " + error.message);
                         else { 
-                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر (تم رفضه): ${duplicatesCount}\n⚠️ ناقص بيانات (تم رفضه): ${skippedCount}`); 
+                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`); 
                             await fetchDataFromCloud(); 
                         }
                     } else {
@@ -336,7 +365,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- Other Functions (Standard) ---
+        // --- Other Functions ---
         async function fetchDataFromCloud() {
             showLoader(true);
             const { data, error } = await db.from('invoices').select('*').eq('employee_name', currentFullName).order('id', { ascending: true });
@@ -388,6 +417,7 @@
         // V51 Logic for Date (Strict)
         function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
     </script>
 </body>
 </html>
