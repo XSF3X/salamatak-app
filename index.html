@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V63 - الاستيراد الصارم)</title>
-
+    <title>SALAMTK (V64 - التقرير الشفاف)</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -195,8 +195,8 @@
     <div id="changePinModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80 z-50">
         <div class="bg-gray-800 p-6 rounded-2xl w-80 text-center border border-gray-600 shadow-2xl">
             <h3 class="text-xl font-bold mb-4 text-white">تغيير الرقم السري</h3>
-            <input type="password" id="oldPinInput" placeholder="الرقم الحالي" class="w-full mb-3 bg-gray-900 border border-gray-600 p-3 rounded-lg text-center text-white">
-            <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full mb-6 bg-gray-900 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <input type="password" id="oldPinInput" placeholder="الرقم الحالي" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-center text-white">
             <div class="flex gap-2">
                 <button onclick="submitChangePin()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg w-full font-bold">حفظ</button>
                 <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg w-full font-bold">إلغاء</button>
@@ -214,314 +214,88 @@
 
         let db = null;
         let currentUser = null, currentRole = 'user', currentFullName = '';
-        let employeeData = [];
-        let currentCardValue = '', currentCommission = 0;
+        let employeeData = [], currentCardValue = '', currentCommission = 0;
         let stream = null, isScanning = false, scanInterval = null;
-        const video = document.getElementById('video'); const canvas = document.createElement('canvas'); // Virtual canvas
+        const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
         // --- 1. Login ---
         async function loginSystem() {
-            const name = document.getElementById('loginName').value.trim();
-            const pin = document.getElementById('loginPin').value.trim();
+            const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
-
-            showLoader(true, "جاري التحقق...");
+            showLoader(true);
             const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
             showLoader(false);
-
-            if (error || !data) return showError("❌ البيانات غير صحيحة");
-            if (!data.full_name) { alert("⚠️ الاسم الكامل غير مسجل!"); return; }
-
-            currentUser = data.username; currentRole = data.role; currentFullName = data.full_name;
-            enterSystem();
+            if (error || !data) showError("❌ خطأ في الاسم أو الرقم السري");
+            else { 
+                currentUser = data.username; 
+                currentRole = data.role; 
+                currentFullName = data.full_name;
+                
+                if (!currentFullName) {
+                    alert("⚠️ تنبيه: اسمك الكامل غير مسجل في النظام.");
+                    // يمكن السماح بالدخول لكن مع تنبيه
+                }
+                
+                enterSystem(); 
+            }
         }
 
         function enterSystem() {
-            document.getElementById('displayEmployeeName').textContent = currentFullName;
+            document.getElementById('displayEmployeeName').textContent = currentFullName || currentUser;
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('cardModal').classList.remove('hidden');
             if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
             fetchDataFromCloud();
         }
 
-        // --- 2. Advanced Excel Export (Styled) ---
-        function exportXLS() {
-            if(!employeeData.length) return alert("لا توجد بيانات");
-
-            const totalProfit = employeeData.reduce((sum, row) => sum + (parseFloat(row.profit) || 0), 0);
-            
-            // Header Row (With Name)
-            const titleRow = [`تقرير الموظف: ${currentFullName}`, "", "", "", "", "", "الإجمالي:", `${totalProfit} ريال`];
-            // Table Headers
-            const headers = ["م", "رقم البطاقة", "اسم المريض", "رقم الملف", "رقم الفاتورة", "التاريخ", "الفئة", "الربح"];
-            
-            // Data Rows
-            const dataRows = employeeData.map((row, i) => ([
-                i + 1,
-                row.card_no,
-                row.patient_name,
-                row.file_no,
-                row.inv_no,
-                row.inv_date,
-                parseInt(row.remark),
-                row.profit
-            ]));
-
-            // Combine all
-            const wsData = [
-                titleRow,
-                [], // Empty Row
-                headers,
-                ...dataRows
-            ];
-
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-            // --- Styling Logic ---
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            
-            // Set Column Widths
-            ws['!cols'] = [{wch:5}, {wch:15}, {wch:30}, {wch:15}, {wch:20}, {wch:15}, {wch:10}, {wch:12}];
-            
-            // Merge Title
-            if(!ws['!merges']) ws['!merges'] = [];
-            ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }); // Merge Name
-            ws['!merges'].push({ s: { r: 0, c: 6 }, e: { r: 0, c: 7 } }); // Merge Total Label + Value
-            
-            for (let R = range.s.r; R <= range.e.r; ++R) {
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                    const cellRef = XLSX.utils.encode_cell({r: R, c: C});
-                    if (!ws[cellRef]) continue;
-                    
-                    // Default Style (Borders & Alignment)
-                    let style = {
-                        font: { name: "Arial", sz: 11 },
-                        alignment: { horizontal: "center", vertical: "center" },
-                        border: {
-                            top: { style: "thin", color: { rgb: "000000" } },
-                            bottom: { style: "thin", color: { rgb: "000000" } },
-                            left: { style: "thin", color: { rgb: "000000" } },
-                            right: { style: "thin", color: { rgb: "000000" } }
-                        }
-                    };
-
-                    // 1. Title Row (Row 0)
-                    if (R === 0) {
-                        style.font = { sz: 14, bold: true, color: { rgb: "FFFFFF" } };
-                        style.fill = { fgColor: { rgb: "1E3A8A" } }; // Dark Blue
-                        if (C >= 6) { // Total Box
-                             style.fill = { fgColor: { rgb: "166534" } }; // Green
-                        }
-                    }
-                    // 2. Header Row (Row 2)
-                    else if (R === 2) {
-                        style.font = { sz: 12, bold: true, color: { rgb: "FFFFFF" } };
-                        style.fill = { fgColor: { rgb: "EA580C" } }; // Orange
-                    }
-                    // 3. Data Rows
-                    else if (R > 2) {
-                        // Zebra Striping (Alternating Colors)
-                        if (R % 2 === 0) {
-                             style.fill = { fgColor: { rgb: "F3F4F6" } }; // Light Grey
-                        }
-                        // Profit Column (Green Text)
-                        if (C === 7) {
-                            style.font.color = { rgb: "16A34A" };
-                            style.font.bold = true;
-                        }
-                    }
-
-                    ws[cellRef].s = style;
-                }
-            }
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "تقرير");
-            XLSX.writeFile(wb, `Report_${currentFullName}.xlsx`);
-        }
-
-        // --- 3. Save Entry ---
-        async function saveEntryToCloud() {
-            const card = document.getElementById('cardNo').value.trim();
-            const name = document.getElementById('pName').value.trim();
-            const file = document.getElementById('fileNo').value.trim();
-            const inv = document.getElementById('invNo').value.trim();
-            const date = document.getElementById('pDate').value.trim();
-
-            if (!card || !name || !file || !inv || !date) return alert("⚠️ البيانات ناقصة");
-
-            showLoader(true, "جاري الحفظ...");
-            const { data: exist } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', card).maybeSingle();
-            if(exist) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
-
-            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: card, patient_name: name, file_no: file, inv_no: inv, inv_date: date, remark: currentCardValue, profit: currentCommission };
-            const { error } = await db.from('invoices').insert([entry]);
-            showLoader(false);
-            if(error) alert("فشل الحفظ: " + error.message);
-            else { alert("✅ تم الحفظ!"); fetchDataFromCloud(); clearInputs(); }
-        }
-
-        // --- 4. OCR Logic (Smart V60) ---
-        async function startLiveScan() {
-            try {
-                document.getElementById('imagePreview').classList.add('hidden');
-                video.classList.remove('hidden');
-                document.getElementById('cameraBox').classList.add('scanning');
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream; video.play();
-                
-                const t = stream.getVideoTracks()[0];
-                const caps = t.getCapabilities();
-                const flashBtn = document.getElementById('flashBtn'); 
-                if(flashBtn && caps.torch) flashBtn.classList.remove('hidden');
-
-                isScanning = true; scanInterval = setInterval(processFrame, 1500);
-            } catch(e) { alert("خطأ الكاميرا: " + e.message); }
-        }
-        
-        async function toggleFlash() {
-            if(stream) { const t = stream.getVideoTracks()[0]; const s = t.getSettings(); await t.applyConstraints({ advanced: [{ torch: !s.torch }] }); }
-        }
-
-        function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
-        
-        async function processFrame() {
-            if(!isScanning || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-            const ctx = canvas.getContext('2d'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            document.getElementById('statusText').innerText = "جاري التحليل...";
-            
-            canvas.toBlob(blob => {
-                Tesseract.recognize(blob, 'eng').then(({ data: { text } }) => {
-                    const data = extractData(text);
-                    if(data.isValid) {
-                        stopCamera();
-                        document.getElementById('cameraBox').classList.remove('scanning');
-                        document.getElementById('cameraBox').classList.add('success');
-                        document.getElementById('statusText').innerText = "تم الالتقاط بنجاح!";
-                        fillForm(data);
-                    }
-                });
-            }, 'image/jpeg', 0.8);
-        }
-
-        async function handleFile(input) {
-            const file = input.files[0]; if(!file) return;
-            stopCamera(); video.classList.add('hidden');
-            const img = document.getElementById('imagePreview'); img.classList.remove('hidden'); img.src = URL.createObjectURL(file);
-            document.getElementById('statusText').innerText = "جاري القراءة...";
-            
-            Tesseract.recognize(file, 'eng').then(({ data: { text } }) => {
-                const d = extractData(text);
-                fillForm(d);
-                document.getElementById('statusText').innerText = d.isValid ? "تم!" : "حاول مرة أخرى";
-                if(!d.isValid) alert("البيانات غير واضحة");
-            });
-        }
-
-        // --- Extraction Logic ---
-        function extractData(text) {
-            const lines = text.split('\n');
-            let d = { file: '', name: '', date: '', inv: '', isValid: false };
-            
-            const fm = text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); 
-            if (fm) {
-                let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L');
-                if (!raw.toUpperCase().endsWith('L')) raw += 'L';
-                d.file = raw.toUpperCase();
-            }
-
-            if (d.file) {
-                const l = lines.find(line => line.includes(fm ? fm[0] : ''));
-                if (l) d.name = l.replace(fm ? fm[0] : '', '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|\d/gi, '').replace(/[^\w\s]/g, '').trim();
-            }
-
-            const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
-            if (invMatch) d.inv = `${invMatch[1]}-${invMatch[2]}`;
-
-            for (let l of lines) {
-                let lower = l.toLowerCase();
-                if (lower.includes('birth') || lower.includes('dob')) continue;
-                const m = l.match(/(\d{1,2}[-_. /]*[A-Za-z]{3}[-_. /]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})/);
-                if (m) {
-                    if (lower.includes('am') || lower.includes('pm') || lower.includes(':') || lower.includes('date')) {
-                        d.date = m[1].replace(/[\s/.]/g, '-');
-                        break;
-                    }
-                }
-            }
-            if (!d.date) { const m2 = text.match(/(\d{2}[-][A-Z]{3}[-]\d{4})/i); if (m2) d.date = m2[0]; }
-
-            if (d.file && (d.inv || d.date)) d.isValid = true;
-            return d;
-        }
-
-        function fillForm(d) {
-            if(d.file) document.getElementById('fileNo').value = d.file;
-            if(d.name) document.getElementById('pName').value = d.name;
-            if(d.date) document.getElementById('pDate').value = d.date;
-            if(d.inv) document.getElementById('invNo').value = d.inv;
-        }
-
-        // --- Helpers ---
-        function showLoader(b, txt="جاري العمل...") { 
-            const l = document.getElementById('globalLoader'); 
-            document.getElementById('loaderText').innerText = txt;
-            l.classList.toggle('hidden', !b); 
-        }
-        function showError(m) { const d = document.getElementById('errorMsg'); d.textContent=m; d.classList.remove('hidden'); }
-        function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
-        function selectCardType(v) { currentCardValue = String(v); currentCommission = v==='500'?15 : (v==='200'?10 : 5); document.getElementById('currentCategoryBadge').textContent = `فئة ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
-        async function checkConnection() { 
-            const statusDiv = document.getElementById('connectionStatus');
-            const loginBtn = document.getElementById('loginBtn');
-            if (!SUPABASE_URL.startsWith('http')) return alert("⚠️ الروابط ناقصة!"); 
-            try { 
-                db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); 
-                // Quick check (minimal query)
-                await db.from('users').select('count', { count: 'exact', head: true }); 
-                statusDiv.innerText = "✅ متصل";
-                loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.remove('cursor-not-allowed'); loginBtn.textContent = "دخول 🔐"; 
-            } catch(e) { statusDiv.innerText = "❌ فشل الاتصال"; showError("فشل الاتصال بالسيرفر"); } 
-        }
-        async function fetchDataFromCloud() { showLoader(true); const { data } = await db.from('invoices').select('*').eq('employee_name', currentFullName).order('id', {ascending:true}); showLoader(false); employeeData = data || []; const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit || 0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = total; }
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await db.from('invoices').delete().eq('id', id); fetchDataFromCloud(); } }
-        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
-        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); const tbody = document.getElementById('usersTableBody'); tbody.innerHTML = ''; if(data) data.forEach(user => { tbody.innerHTML += `<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${user.full_name||'-'}</td><td class="p-3 text-yellow-400 font-mono tracking-wider">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3 flex justify-center gap-2"><button onclick="resetUserPin('${user.id}')" class="text-yellow-500"><i class="fa-solid fa-key"></i></button><button onclick="deleteUser('${user.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); }
-        async function addNewUser() { const u = document.getElementById('newUsername').value.trim(); const f = document.getElementById('newFullName').value.trim(); const p = document.getElementById('newPin').value.trim(); const r = document.getElementById('newRole').value; if(!u || !p) return alert("مطلوب"); const { error } = await db.from('users').insert([{ username: u, full_name: f, pin: p, role: r }]); if(error) alert("خطأ: " + error.message); else { alert("✅ تم!"); loadAllUsers(); } }
-        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
-        async function resetUserPin(id) { const newP = prompt("الرقم الجديد:"); if(newP) { await db.from('users').update({pin: newP}).eq('id', id); loadAllUsers(); alert("تم"); } }
-        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
-        async function fixOldProfits() { if(!confirm("تصحيح أرباح فئة 200 إلى 10 ريال؟")) return; showLoader(true); const { error } = await db.from('invoices').update({ profit: 10 }).eq('employee_name', currentFullName).eq('remark', '200').neq('profit', 10); showLoader(false); if(error) alert("خطأ: " + error.message); else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); } }
-        
-        // --- Smart Import (Strict & Complete) ---
+        // --- 2. Smart Import (Strict & Report) ---
         async function smartImport(input) {
-            const file = input.files[0]; if (!file) return;
-            if(!confirm("استيراد البيانات المكتملة فقط؟")) { input.value = ''; return; }
+            const file = input.files[0];
+            if (!file) return;
+
+            if(!confirm("سيتم استيراد البيانات المكتملة فقط. موافق؟")) { input.value = ''; return; }
+
             showLoader(true);
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
-                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {defval:""});
-                    const { data: existing } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
-                    const existingSet = new Set(existing ? existing.map(i=>String(i.card_no).trim()) : []);
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
+
+                    // جلب البطاقات الموجودة (للموظف الحالي)
+                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
+                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
+
+                    let headerRowIndex = -1;
+                    // Find header row logic...
+                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
+                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                        if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) { headerRowIndex = i; break; }
+                    }
+
                     const entriesToUpload = [];
-                    let skipped = 0;
-                    
-                    for(let i=0; i<jsonData.length; i++) {
+                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
+                    let skippedCount = 0;
+                    let duplicatesCount = 0;
+                    let successCount = 0;
+
+                    for (let i = startRow; i < jsonData.length; i++) {
                         const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+
                         let entry = { 
-                            employee_name: currentFullName, employee_id: currentUser, 
+                            employee_name: currentFullName, employee_id: currentUser,
                             remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
                         };
                         
+                        // Extract data logic (simplified fallback)
                         Object.values(row).forEach(v => {
                             let s = String(v).trim();
                             if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
                             else if(s.endsWith('L')) entry.file_no = s;
-                            else if(s.includes('-') && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                            else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
                             else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
                             else if(s.length > 5 && !/\d/.test(s)) entry.patient_name = s;
                             else if(['100','200','500'].includes(s)) {
@@ -530,32 +304,90 @@
                             }
                         });
 
-                        if (!entry.card_no || !entry.patient_name || !entry.inv_no || !entry.file_no || !entry.inv_date) {
-                            skipped++; continue; 
+                        // 🔥 Strict Filter 🔥
+                        if (!entry.card_no || !entry.patient_name || !entry.file_no || !entry.inv_no || !entry.inv_date) {
+                            skippedCount++;
+                            continue; 
                         }
 
-                        if (!existingSet.has(entry.card_no)) {
-                            entriesToUpload.push(entry);
-                            existingSet.add(entry.card_no);
+                        if (existingSet.has(entry.card_no)) {
+                            duplicatesCount++;
+                            continue;
                         }
+
+                        entriesToUpload.push(entry);
+                        existingSet.add(entry.card_no);
+                        successCount++;
                     }
-                    
+
                     if(entriesToUpload.length > 0) {
                         const { error } = await db.from('invoices').insert(entriesToUpload);
                         if(error) alert("خطأ: " + error.message);
                         else { 
-                            alert(`✅ تم استيراد ${entriesToUpload.length} سجل.\n⚠️ تم رفض ${skipped} سجل ناقص.`); 
+                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر (تم رفضه): ${duplicatesCount}\n⚠️ ناقص بيانات (تم رفضه): ${skippedCount}`); 
                             await fetchDataFromCloud(); 
                         }
-                    } else { alert("لم يتم استيراد أي بيانات جديدة."); }
-                } catch(err) { console.error(err); alert("خطأ في الملف"); } finally { showLoader(false); input.value = ''; }
+                    } else {
+                        alert(`❌ لم يتم استيراد أي بيانات!\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص: ${skippedCount}`);
+                    }
+
+                } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
             };
             reader.readAsArrayBuffer(file);
         }
 
+        // --- Other Functions (Standard) ---
+        async function fetchDataFromCloud() {
+            showLoader(true);
+            const { data, error } = await db.from('invoices').select('*').eq('employee_name', currentFullName).order('id', { ascending: true });
+            showLoader(false);
+            if(error) console.warn(error); employeeData = data || []; renderTable();
+        }
+
+        async function saveEntryToCloud() {
+            const manualCardNo = document.getElementById('cardNo').value.trim();
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
+
+            showLoader(true);
+            const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
+            if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
+
+            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
+            const { data, error } = await db.from('invoices').insert([entry]).select();
+            showLoader(false);
+            if(error) alert("فشل الحفظ: " + error.message);
+            else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
+        }
+
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
+
+        function selectCardType(v) { currentCardValue = String(v); if(v == '100') currentCommission = 5; else if(v == '200') currentCommission = 10; else if(v == '500') currentCommission = 15; document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
+        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ const displayName=user.full_name?user.full_name:'-'; tbody.innerHTML+=`<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono tracking-wider">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3 flex justify-center gap-2"><button onclick="resetUserPin('${user.id}')" class="text-yellow-500"><i class="fa-solid fa-key"></i></button><button onclick="deleteUser('${user.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
+        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const fullName=document.getElementById('newFullName').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("مطلوب"); const {error}=await db.from('users').insert([{username:name,full_name:fullName,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); document.getElementById('newUsername').value=''; document.getElementById('newFullName').value=''; document.getElementById('newPin').value=''; } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
+        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
+        async function fixOldProfits() { if(!confirm("تصحيح أرباح فئة 200 إلى 10 ريال؟")) return; showLoader(true); const { error } = await db.from('invoices').update({ profit: 10 }).eq('employee_name', currentFullName).eq('remark', '200').neq('profit', 10); showLoader(false); if(error) alert("خطأ: " + error.message); else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); } }
+
+        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
         function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
-        function handleEnter(e, next) { if(e.key==='Enter') { e.preventDefault(); document.getElementById(next).focus(); } }
-        function togglePin() { const p = document.getElementById('loginPin'); p.type = p.type === 'password' ? 'text' : 'password'; }
+        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
+        async function checkConnection() { const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn'); if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; } try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); } }
+        function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
+        function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
+        function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
+        function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
+        
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 2000); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
+        function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
+        async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
+        async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        
+        // V51 Logic for Date (Strict)
+        function extractData(text) { const lines=text.split('\n'); let d={file:'',name:'',date:'',inv:'',isValid:false}; const fm=text.match(/\b00\d{5,}[1L]?\b/); if(fm) d.file=fm[0].endsWith('1')?fm[0].slice(0,-1)+'L':fm[0]; if(d.file){ const l=lines.find(line=>line.includes(fm[0])); if(l) d.name=l.replace(fm[0],'').replace(/Gender|Male|Female|Date|Birth/gi,'').replace(/[0-9]/g,'').replace(/[^\w\s]/g,'').trim(); } for(let l of lines){ let c=l.toLowerCase(); if(c.includes('birth')||c.includes('dob'))continue; const m=l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m&&(c.includes('am')||c.includes('pm')||c.includes(':'))){ d.date=m[1].replace(/\s/g,'-').replace(/\./g,'-'); break; } } if(!d.date){ const m2=text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date=m2[0]; } const csh=text.match(/CSH[\W_]*([A-Z0-9]{2})[\W_]*([A-Z0-9]+)/i); const dir=text.match(/\b([A-Z0-9]{2})[-_]([0-9]+[A-Z]?)/); const oc=text.match(/OC[-_]([A-Z0-9]+)/); if(csh) d.inv=`CSH/${csh[1]}-${csh[2]}`; else if(dir) d.inv=`${dir[1]}-${dir[2]}`; else if(oc) d.inv=oc[0]; if(d.file&&(d.inv||d.date)) d.isValid=true; return d; }
+        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
     </script>
 </body>
 </html>
