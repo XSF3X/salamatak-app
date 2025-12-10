@@ -1,407 +1,216 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SALAMTK (V49 - دقة التاريخ)</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SALAMTK (V55)</title>
 
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: white; }
-        .camera-container { position: relative; width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
-        .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
-        .scanning .scan-line { display: block; }
-        .modal { z-index: 60; background-color: rgba(0, 0, 0, 0.95); }
-        .card-img-btn { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border-radius: 12px; overflow: hidden; border: 3px solid transparent; }
-        .card-img-btn:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.5); border-color: #f59e0b; }
-        .card-img-btn img { width: 100%; height: auto; object-fit: contain; display: block; }
-        input:focus { ring: 2px; ring-color: #f59e0b; outline: none; border-color: #f59e0b; }
-        .excel-table th { background-color: #c2410c; color: white; border: 1px solid #4b5563; }
-        .excel-table td { border: 1px solid #374151; color: #1f2937; vertical-align: middle; background-color: white; }
-        #globalLoader { z-index: 100; background: rgba(0,0,0,0.9); }
-        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
-        @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-    </style>
+<style>
+body { font-family: 'Segoe UI', Tahoma; background-color:#0f172a; color:white; }
+.excel-table th { background:#c2410c; color:#fff; }
+.excel-table td { border:1px solid #374151; background:white; color:#000; }
+</style>
 </head>
-<body class="p-4 md:p-6" onload="checkConnection()">
 
-    <div id="globalLoader" class="fixed inset-0 flex flex-col items-center justify-center hidden">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-600"></div>
-        <p class="mt-4 text-white font-bold tracking-wider">جاري العمل...</p>
-    </div>
+<body onload="checkConnection()">
 
-    <div id="loginModal" class="fixed inset-0 flex items-center justify-center bg-gray-900 z-50">
-        <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4 text-center border-t-8 border-orange-600 relative">
-            
-            <img src="unnamed.png" class="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg border-2 border-orange-500" alt="Logo">
+<!-- ====================== LOADER ====================== -->
+<div id="globalLoader" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center hidden">
+<div class="animate-spin h-16 w-16 rounded-full border-t-4 border-orange-500"></div>
+<p class="mt-4 text-white font-bold">جاري العمل...</p>
+</div>
 
-            <div id="connectionStatus" class="absolute top-2 left-0 right-0 text-xs font-bold text-gray-500">فحص...</div>
-            <h2 class="text-3xl font-extrabold text-white mb-2">تسجيل الدخول</h2>
-            <input type="text" id="loginName" placeholder="اسم المستخدم (ID)" onkeydown="handleEnter(event, 'loginPin')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white mb-3 text-center placeholder-gray-400">
-            <div class="relative mb-6">
-                <input type="password" id="loginPin" placeholder="الرقم السري" onkeydown="handleEnter(event, 'loginBtn')" class="w-full bg-gray-700 border-2 border-gray-600 p-3 rounded-lg font-bold text-lg text-white text-center tracking-widest placeholder-gray-400">
-                <button onclick="togglePin()" class="absolute left-3 top-3 text-gray-400 hover:text-white"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
-            </div>
-            <button onclick="loginSystem()" id="loginBtn" class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold text-lg shadow-lg cursor-not-allowed" disabled>انتظر...</button>
-            <div id="errorMsg" class="mt-4 text-red-300 text-xs font-bold hidden bg-red-900/50 p-3 rounded border border-red-500 text-right" dir="ltr"></div>
-        </div>
-    </div>
+<!-- ====================== LOGIN ====================== -->
+<div id="loginModal" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+<div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full border-t-8 border-orange-600 text-center">
+<h2 class="text-3xl font-bold text-white mb-4">تسجيل الدخول</h2>
+<input type="text" id="loginName" placeholder="ID" onkeydown="handleEnter(event,'loginPin')" class="w-full mb-3 bg-gray-700 border border-gray-600 p-3 rounded-lg text-center">
+<input type="password" id="loginPin" placeholder="PIN" onkeydown="handleEnter(event,'loginBtn')" class="w-full mb-6 bg-gray-700 border border-gray-600 p-3 rounded-lg text-center">
+<button onclick="loginSystem()" id="loginBtn" disabled class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold cursor-not-allowed">انتظر...</button>
+<p id="errorMsg" class="hidden mt-4 text-xs text-red-300 bg-red-900/50 p-2 rounded"></p>
+</div>
+</div>
 
-    <div id="adminPanelModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-5xl w-full mx-4 border-2 border-red-600 h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-2xl font-bold text-red-500"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين</h2>
-                    <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm flex items-center gap-1"><i class="fa-solid fa-rotate"></i> تحديث</button>
-                </div>
-                <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark fa-2x"></i></button>
-            </div>
-            <div class="bg-gray-700 p-5 rounded-xl mb-6 shadow-lg border border-gray-600">
-                <h3 class="text-white font-bold mb-3 text-sm flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> إضافة موظف جديد:</h3>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    <input type="text" id="newUsername" placeholder="الرقم الوظيفي (ID)" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
-                    <input type="text" id="newFullName" placeholder="الاسم الكامل" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
-                    <input type="text" id="newPin" placeholder="الرقم السري" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
-                    <select id="newRole" class="bg-gray-800 border border-gray-500 p-3 rounded-lg text-white text-center focus:border-green-500">
-                        <option value="user">موظف (User)</option>
-                        <option value="admin">مشرف (Admin)</option>
-                    </select>
-                </div>
-                <button onclick="addNewUser()" class="w-full mt-4 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg font-bold shadow-md">حفظ وإضافة الموظف ✅</button>
-            </div>
-            <div class="overflow-y-auto flex-1 bg-gray-900 rounded-xl border border-gray-700">
-                <table class="w-full text-center text-sm text-gray-300">
-                    <thead class="bg-gray-800 text-gray-200 sticky top-0 shadow-md">
-                        <tr><th class="p-4">المستخدم (ID)</th><th class="p-4 text-yellow-400">الاسم الكامل</th><th class="p-4">PIN</th><th class="p-4">الصلاحية</th><th class="p-4">إجراء</th></tr>
-                    </thead>
-                    <tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<!-- ====================== CARD SELECT ====================== -->
+<div id="cardModal" class="hidden fixed inset-0 flex items-center justify-center">
+<div class="bg-gray-900 rounded-2xl p-6 max-w-3xl w-full mx-4 border-t-4 border-orange-600">
+<h2 class="text-2xl font-bold text-center mb-6">اختر الفئة</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center font-bold">
+<div onclick="selectCardType('500')" class="cursor-pointer hover:scale-105"><img src="salamtk300.jpg"><p class="mt-2 text-yellow-400">فئة 500 ريال</p></div>
+<div onclick="selectCardType('200')" class="cursor-pointer hover:scale-105"><img src="salamtk200.jpg"><p class="mt-2 text-teal-400">فئة 200 ريال</p></div>
+<div onclick="selectCardType('100')" class="cursor-pointer hover:scale-105"><img src="salamtk100.jpg"><p class="mt-2 text-purple-400">فئة 100 ريال</p></div>
+</div>
+</div>
+</div>
 
-    <div id="cardModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-5xl w-full mx-4 border-t-4 border-orange-600">
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">اختر الفئة</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="card-img-btn" onclick="selectCardType('100')"><img src="salamtk100.png" alt="100"><p class="text-center mt-2 font-bold text-purple-400 text-lg">فئة 100 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('200')"><img src="salamtk200.png" alt="200"><p class="text-center mt-2 font-bold text-teal-400 text-lg">فئة 200 ريال</p></div>
-                <div class="card-img-btn" onclick="selectCardType('500')"><img src="salamtk300.png" alt="500"><p class="text-center mt-2 font-bold text-yellow-400 text-lg">فئة 500 ريال</p></div>
-            </div>
-        </div>
-    </div>
+<!-- ====================== MAIN ====================== -->
+<div id="mainContent" class="hidden max-w-5xl mx-auto p-4">
+<!-- HEADER -->
+<div class="flex justify-between bg-gray-800 p-4 rounded-xl border border-gray-700 mb-4">
+<div>
+<p class="text-xs text-gray-400">مرحباً</p>
+<h1 class="text-xl font-bold" id="displayEmployeeName">--</h1>
+</div>
+<div class="flex gap-2">
+<button id="adminBtn" onclick="openActivity()" class="hidden bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-gear"></i> السجل</button>
+<button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-500 px-4 py-2 rounded-lg"><i class="fa-solid fa-key"></i></button>
+<button onclick="location.reload()" class="bg-gray-600 px-4 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i></button>
+</div>
+</div>
 
-    <div id="changePinModal" class="fixed inset-0 flex items-center justify-center hidden modal">
-        <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 border-2 border-yellow-500 text-center">
-            <h3 class="text-xl font-bold text-white mb-4">تغيير الرقم السري</h3>
-            <input type="password" id="oldPinInput" placeholder="الرقم الحالي" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-3 text-center">
-            <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white mb-6 text-center">
-            <div class="flex gap-2">
-                <button onclick="submitChangePin()" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white py-2 rounded-lg font-bold">تغيير</button>
-                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg font-bold">إلغاء</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="mainContent" class="hidden max-w-6xl mx-auto">
-        <div class="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg flex-wrap gap-2">
-            <div class="flex items-center gap-4">
-                <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-2xl shadow-md overflow-hidden">
-                    <img src="unnamed.png" alt="Logo" class="w-full h-full object-cover">
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400 uppercase">مرحباً</p>
-                    <h1 class="text-xl font-bold text-white" id="displayEmployeeName">--</h1>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                 <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold border border-red-400"><i class="fa-solid fa-gear"></i> إدارة</button>
-                 <button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded-lg text-sm font-bold" title="تغيير الرقم السري"><i class="fa-solid fa-key"></i></button>
-                 <button onclick="fixOldProfits()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-1" title="إصلاح الأرباح"><i class="fa-solid fa-wrench"></i> تصحيح</button>
-                 <span class="hidden md:inline-block text-xs bg-gray-700 px-3 py-1.5 rounded text-gray-300 font-mono" id="currentCategoryBadge">--</span>
-                 <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-right-from-bracket"></i></button>
-            </div>
-        </div>
+<!-- MANUAL ENTRY -->
+<div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+<div class="grid grid-cols-2 gap-4">
+<input id="cardNo" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم البطاقة">
+<input id="pNameInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="اسم المريض">
+<input id="fileNoInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم الملف">
+<input id="invNoInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم الفاتورة">
+<input id="pDateInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="التاريخ">
+<input disabled class="bg-gray-900 border border-gray-600 p-3 rounded text-center font-bold" id="currentCategoryBadge" value="--">
+</div>
+<button onclick="saveEntryToCloud()" class="mt-4 w-full bg-green-600 py-3 font-bold rounded-xl">حفظ</button>
+</div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-                <div id="cameraBox" class="camera-container scanning mb-4 shadow-2xl bg-black">
-                    <video id="video" autoplay playsinline muted></video>
-                    <img id="imagePreview" class="w-full h-full object-contain hidden bg-black">
-                    <div class="scan-line"></div>
-                    <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
-                </div>
-                <div class="grid grid-cols-3 gap-3 mb-6">
-                    <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
-                    <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
-                    
-                    <div class="relative col-span-1">
-                        <button onclick="document.getElementById('fileIn').click()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl shadow-lg">📂 ملف</button>
-                        <input type="file" id="fileIn" class="hidden" accept="image/*,application/pdf" onchange="handleFile(this)">
-                    </div>
-                </div>
-            </div>
+<!-- TABLE -->
+<div class="mt-6 bg-white rounded-xl overflow-hidden">
+<table class="w-full text-sm text-gray-700 excel-table bg-white">
+<thead><tr><th>SN</th><th>CARD</th><th>PATIENT</th><th>FILE</th><th>INV</th><th>DATE</th><th>CAT</th><th>PROFIT</th><th>#</th></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+</div>
 
-            <div class="bg-gray-800 rounded-2xl p-6 text-white shadow-2xl h-fit border border-gray-700">
-                <div class="mb-5">
-                    <label class="text-xs font-bold text-orange-400 uppercase mb-2 block">رقم البطاقة</label>
-                    <input type="text" id="cardNo" placeholder="الرقم..." class="w-full bg-gray-900 border-2 border-gray-600 p-4 rounded-xl font-mono text-2xl font-bold text-white text-center focus:border-orange-500">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-bold text-sm text-gray-200"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-sm text-blue-300"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-red-400 text-sm"></div>
-                    <div class="relative">
-                        <label class="text-[10px] font-bold text-gray-400">التاريخ</label>
-                        <div class="flex items-center">
-                            <input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-2 rounded-lg font-mono font-bold text-green-400 text-sm pl-8">
-                            <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-6"><i class="fa-solid fa-calendar-days text-lg"></i></button>
-                            <input type="date" id="datePickerHidden" class="absolute opacity-0 bottom-0 left-0 w-0 h-0" onchange="updateDateFromPicker()">
-                        </div>
-                    </div>
-                </div>
-                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-2"><span>حفظ سحابي</span> <i class="fa-solid fa-cloud-arrow-up"></i></button>
-            </div>
-        </div>
+<!-- ====================== CHANGE PIN MODAL ====================== -->
+<div id="changePinModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80">
+<div class="bg-gray-900 p-6 rounded-xl w-80 text-center">
+<h3 class="text-xl font-bold mb-2">تغيير الرقم السري</h3>
+<input id="oldPinInput" placeholder="الحالي" class="w-full mb-2 bg-gray-800 p-2 rounded">
+<input id="newPinInput" placeholder="الجديد" class="w-full mb-4 bg-gray-800 p-2 rounded">
+<button onclick="submitChangePin()" class="bg-yellow-500 px-4 py-2 rounded w-full">تغيير</button>
+</div>
+</div>
 
-        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl border border-gray-700 mt-6">
-            <div class="flex justify-between items-center bg-gray-100 p-4 border-b flex-wrap gap-2">
-                <div class="flex gap-2 items-center flex-wrap">
-                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">تنزيل Excel 📥</button>
-                    <div class="relative">
-                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">استيراد ملف 📂</button>
-                        <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
-                    </div>
-                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">الفئة 🔄</button>
-                    <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow"><i class="fa-solid fa-sync"></i></button>
-                </div>
-                <div class="text-right"><span class="block text-xs text-gray-500">رصيدك</span><span class="text-green-700 font-extrabold text-xl" id="totalProfitDisplay">0 ريال</span></div>
-            </div>
-            <div class="overflow-x-auto max-h-[500px]">
-                <table class="w-full text-sm text-center text-gray-700 whitespace-nowrap excel-table bg-white">
-                    <thead class="sticky top-0 z-10 shadow-md">
-                        <tr><th class="p-3 w-12">SN</th><th class="p-3">CARD NO</th><th class="p-3 text-right">PATIENT NAME</th><th class="p-3">FILE NO.</th><th class="p-3">INV. NO.</th><th class="p-3">DATE</th><th class="p-3 bg-yellow-400 text-black">REMARK</th><th class="p-3">PROFIT</th><th class="p-3 bg-gray-800 text-white">#</th></tr>
-                    </thead>
-                    <tbody id="tbody"></tbody>
-                </table>
-            </div>
-        </div>
-        <canvas id="canvas" class="hidden"></canvas>
-    </div>
+<!-- ====================== ACTIVITY LOG ====================== -->
+<div id="activityModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
+<div class="bg-gray-900 p-6 rounded-xl max-w-3xl w-full border border-gray-600">
+<h2 class="text-xl font-bold mb-4">سجل النشاط</h2>
+<table class="w-full text-sm bg-white text-gray-700 excel-table">
+<thead><tr><th>المستخدم</th><th>العملية</th><th>تفاصيل</th><th>الوقت</th></tr></thead>
+<tbody id="logBody"></tbody>
+</table>
+<button onclick="activityModal.classList.add('hidden')" class="mt-4 bg-red-600 px-4 py-2 rounded text-white">إغلاق</button>
+</div>
+</div>
 
 <script>
-        // ==========================================
-        // 🔴 هام: استبدل الرابط والمفتاح هنا
-        // ==========================================
+/* ========= CONFIG ========= */
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
-        // ==========================================
+        
+let db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let db = null;
-let currentUser = null;
-let currentRole = 'user';
-let currentFullName = '';
-let employeeData = [];
-let currentCardValue = '';
-let currentCommission = 0;
+let currentUser = null, currentRole = "user", currentFullName = "";
+let employeeData = [], currentCardValue = "", currentCommission = 0;
 
-/* ============================
-   INIT CONNECTION
-===============================*/
-async function checkConnection() {
-    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const loginBtn = document.getElementById('loginBtn');
-    try {
-        const { error } = await db.from('users').select('*', { head: true });
-        if (error) throw error;
-        loginBtn.disabled = false;
-        loginBtn.textContent = "دخول 🔐";
-        loginBtn.classList.replace('bg-gray-600', 'bg-orange-600');
-        loginBtn.classList.replace('text-gray-400', 'text-white');
-    } catch {
-        alert("⚠ لا يوجد اتصال بقاعدة البيانات!");
-    }
+/* ========= HELPERS ========= */
+function showLoader(b){globalLoader.classList.toggle('hidden',!b);}
+function showError(m){errorMsg.textContent=m;errorMsg.classList.remove('hidden');}
+function handleEnter(e,n){if(e.key==="Enter"){e.preventDefault();document.getElementById(n).focus();}}
+
+/* ========= INIT ========= */
+async function checkConnection(){
+try{await db.from("users").select("*");loginBtn.disabled=false;loginBtn.classList.remove("cursor-not-allowed");loginBtn.textContent="دخول 🔐";}
+catch(e){alert("⚠ لا يوجد اتصال بقاعدة البيانات!");}
 }
 
-/* ============================
-   LOGIN
-===============================*/
-async function loginSystem() {
-    const name = loginName.value.trim();
-    const pin = loginPin.value.trim();
-    if (!name || !pin) return showError("بيانات ناقصة!");
-
-    const { data, error } = await db.from('users')
-        .select('*').eq('username', name).eq('pin', pin).maybeSingle();
-
-    if (error || !data) return showError("❌ خطأ في البيانات");
-
-    if (!data.full_name) return alert("⚠ اسمك غير مسجل، تواصل مع الإدارة.");
-
-    currentUser = data.username;
-    currentRole = data.role;
-    currentFullName = data.full_name;
-
-    await logAction("LOGIN", `تسجيل دخول المستخدم ${currentFullName}`);
-    enterSystem();
+/* ========= LOGIN ========= */
+async function loginSystem(){
+showLoader(true);
+const {data,error}=await db.from("users").select("*").eq("username",loginName.value.trim()).eq("pin",loginPin.value.trim()).maybeSingle();
+showLoader(false);
+if(error||!data)return showError("❌ خطأ في البيانات");
+if(!data.full_name)return alert("⚠ اسمك غير موجود");
+currentUser=data.username;currentRole=data.role;currentFullName=data.full_name;
+await logAction("LOGIN",`تسجيل دخول`);
+enterSystem();
+}
+function enterSystem(){
+loginModal.classList.add("hidden");
+cardModal.classList.remove("hidden");
+displayEmployeeName.textContent=currentFullName;
+if(currentRole==="admin")adminBtn.classList.remove("hidden");
+fetchDataFromCloud();
 }
 
-/* ============================
-   ENTER SYSTEM
-===============================*/
-function enterSystem() {
-    displayEmployeeName.textContent = currentFullName;
-    loginModal.classList.add('hidden');
-    cardModal.classList.remove('hidden');
-    if (currentRole === 'admin') adminBtn.classList.remove('hidden');
-    fetchDataFromCloud();
+/* ========= LOG ========= */
+async function logAction(action,details=""){await db.from("activity_log").insert([{username:currentUser,action,details}]);}
+async function openActivity(){
+activityModal.classList.remove("hidden");
+const {data}=await db.from("activity_log").select("*").order("id",{ascending:false}).limit(50);
+logBody.innerHTML="";
+data.forEach(r=>logBody.innerHTML+=`<tr><td>${r.username}</td><td>${r.action}</td><td>${r.details}</td><td>${r.created_at}</td></tr>`);
 }
 
-/* ============================
-   ADD ACTIVITY LOG
-===============================*/
-async function logAction(action, details = "") {
-    await db.from('activity_log').insert([{
-        username: currentUser,
-        action: action,
-        details: details
-    }]);
+/* ========= CARD SELECT ========= */
+function selectCardType(v){
+currentCardValue=v;
+currentCommission=v==="500"?15:v==="200"?10:5;
+currentCategoryBadge.value=`فئة ${v}`;
+cardModal.classList.add("hidden");
+mainContent.classList.remove("hidden");
+cardNo.focus();
 }
 
-/* ============================
-   SAVE ENTRY (INVOICE)
-===============================*/
-async function saveEntryToCloud() {
-    const manualCardNo = cardNo.value.trim();
-    const pName = pNameInput.value.trim();
-    const fileNo = fileNoInput.value.trim();
-    const invNo = invNoInput.value.trim();
-    const pDate = pDateInput.value.trim();
+/* ========= SAVE ========= */
+async function saveEntryToCloud(){
+if(!cardNo.value||!pNameInput.value||!fileNoInput.value||!invNoInput.value||!pDateInput.value)return alert("⚠ جميع الحقول مطلوبة");
+const {data:ex}=await db.from("invoices").select("id").eq("employee_id",currentUser).eq("card_no",cardNo.value).maybeSingle();
+if(ex)return alert("❌ مكرر!");
+const entry={employee_id:currentUser,card_no:cardNo.value,patient_name:pNameInput.value,file_no:fileNoInput.value,inv_no:invNoInput.value,inv_date:pDateInput.value,remark:currentCardValue,profit:currentCommission};
+await db.from("invoices").insert([entry]);
+await logAction("ADD_INVOICE",cardNo.value);
+alert("تم ✔");
+fetchDataFromCloud();
+clearInputs();
+}
+function clearInputs(){cardNo.value=fileNoInput.value=pNameInput.value=invNoInput.value=pDateInput.value="";cardNo.focus();}
 
-    if (!manualCardNo || !pName || !fileNo || !invNo || !pDate)
-        return alert("⚠ جميع الحقول مطلوبة!");
-
-    const { data: existing } = await db.from('invoices')
-        .select('id').eq('employee_id', currentUser).eq('card_no', manualCardNo).maybeSingle();
-
-    if (existing) return alert("❌ البطاقة مكررة!");
-
-    const entry = {
-        employee_id: currentUser,
-        card_no: manualCardNo,
-        patient_name: pName,
-        file_no: fileNo,
-        inv_no: invNo,
-        inv_date: pDate,
-        remark: currentCardValue,
-        profit: currentCommission
-    };
-
-    const { error } = await db.from('invoices').insert([entry]);
-    if (error) alert("❌ فشل الحفظ");
-    else {
-        alert("✅ تم الحفظ");
-        await logAction("ADD_INVOICE", `بطاقة: ${manualCardNo}`);
-        fetchDataFromCloud();
-        clearInputs();
-    }
+/* ========= GET ========= */
+async function fetchDataFromCloud(){
+const {data}=await db.from("invoices").select("*").eq("employee_id",currentUser);
+employeeData=data||[];renderTable();
 }
 
-/* ============================
-   FETCH INVOICES
-===============================*/
-async function fetchDataFromCloud() {
-    const { data } = await db.from('invoices')
-        .select('*').eq('employee_id', currentUser).order('id', { ascending: true });
-
-    employeeData = data || [];
-    renderTable();
+/* ========= DELETE ========= */
+async function deleteFromCloud(id,card){
+if(!confirm("حذف؟"))return;
+await db.from("invoices").delete().eq("id",id);
+await logAction("DELETE_INVOICE",card);
+employeeData=employeeData.filter(i=>i.id!==id);renderTable();
 }
 
-/* ============================
-   DELETE INVOICE
-===============================*/
-async function deleteFromCloud(id, cardNo) {
-    if (!confirm("حذف الفاتورة؟")) return;
-    await db.from('invoices').delete().eq('id', id);
-    await logAction("DELETE_INVOICE", `رقم البطاقة: ${cardNo}`);
-    employeeData = employeeData.filter(i => i.id !== id);
-    renderTable();
+/* ========= CHANGE PIN ========= */
+async function submitChangePin(){
+const {data:ch}=await db.from("users").select("id").eq("username",currentUser).eq("pin",oldPinInput.value.trim()).maybeSingle();
+if(!ch)return alert("❌ خطأ");
+await db.from("users").update({pin:newPinInput.value.trim()}).eq("id",ch.id);
+await logAction("CHANGE_PIN");
+alert("تم ✔");changePinModal.classList.add("hidden");
 }
 
-/* ============================
-   CHANGE PIN
-===============================*/
-async function submitChangePin() {
-    const oldPin = oldPinInput.value.trim();
-    const newPin = newPinInput.value.trim();
-    if (!oldPin || !newPin) return alert("أدخل البيانات!");
-
-    const { data: userCheck } = await db.from('users')
-        .select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle();
-
-    if (!userCheck) return alert("❌ الرقم السري الحالي غير صحيح");
-
-    await db.from('users').update({ pin: newPin }).eq('id', userCheck.id);
-    await logAction("CHANGE_PIN");
-    alert("🔐 تم تغيير الرقم بنجاح");
-    changePinModal.classList.add('hidden');
-}
-
-/* ============================
-   IMPORT (UPDATED WITH ID)
-===============================*/
-async function smartImport(input) {
-    const file = input.files[0];
-    if (!file) return;
-    if (!confirm("سيتم دمج البيانات المكتملة فقط. موافق؟")) return input.value = '';
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-            const entries = [];
-            json.slice(1).forEach(row => {
-                if (!row[0] || !row[1]) return;
-                entries.push({
-                    employee_id: currentUser,
-                    card_no: row[0],
-                    patient_name: row[1],
-                    file_no: row[2] || '',
-                    inv_no: row[3] || '',
-                    inv_date: row[4] || '',
-                    remark: row[5] || '100',
-                    profit: row[6] || 5
-                });
-            });
-
-            if (entries.length) {
-                await db.from('invoices').insert(entries);
-                await logAction("IMPORT", `عدد: ${entries.length}`);
-                alert("📥 تم الاستيراد");
-                fetchDataFromCloud();
-            }
-        } catch {
-            alert("❌ خطأ في الملف");
-        }
-    };
-    reader.readAsArrayBuffer(file);
+/* ========= TABLE ========= */
+function renderTable(){
+tbody.innerHTML="";
+employeeData.forEach((r,i)=>tbody.innerHTML+=`
+<tr><td>${i+1}</td><td>${r.card_no}</td><td>${r.patient_name}</td><td>${r.file_no}</td><td>${r.inv_no}</td><td>${r.inv_date}</td><td>${r.remark}</td><td>${r.profit}</td>
+<td><button onclick="deleteFromCloud(${r.id},'${r.card_no}')" class="text-red-600">🗑</button></td></tr>`);
 }
 </script>
+
 </body>
 </html>
-
