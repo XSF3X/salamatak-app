@@ -1,215 +1,499 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SALAMTK (V55)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SALAMTK (V57 - الدمج المثالي)</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
-body { font-family: 'Segoe UI', Tahoma; background-color:#0f172a; color:white; }
-.excel-table th { background:#c2410c; color:#fff; }
-.excel-table td { border:1px solid #374151; background:white; color:#000; }
-</style>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #0f172a; color: white; }
+        
+        /* Table Styles */
+        .excel-table th { background: linear-gradient(to bottom, #ca8a04, #a16207); color: #fff; padding: 10px; border: 1px solid #451a03; }
+        .excel-table td { border: 1px solid #e5e7eb; background: white; color: #1f2937; padding: 8px; vertical-align: middle; }
+        .excel-table tr:hover td { background-color: #f3f4f6; }
+
+        /* Card Select Styles */
+        .card-select { transition: all 0.3s ease; border: 2px solid transparent; }
+        .card-select:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .card-select img { border-radius: 8px; width: 100%; height: auto; }
+
+        /* Input Focus */
+        input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+
+        /* Camera & Loader */
+        .camera-container { position: relative; width: 100%; height: 300px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
+        .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #ef4444; box-shadow: 0 0 4px #ef4444; animation: scan 2s infinite linear; display: none; }
+        .scanning .scan-line { display: block; }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+    </style>
 </head>
 
-<body onload="checkConnection()">
+<body onload="checkConnection()" class="bg-slate-900 min-h-screen">
 
-<!-- ====================== LOADER ====================== -->
-<div id="globalLoader" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center hidden">
-<div class="animate-spin h-16 w-16 rounded-full border-t-4 border-orange-500"></div>
-<p class="mt-4 text-white font-bold">جاري العمل...</p>
-</div>
+    <div id="globalLoader" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center hidden z-[100]">
+        <div class="animate-spin h-16 w-16 rounded-full border-t-4 border-b-4 border-orange-500"></div>
+        <p class="mt-4 text-white font-bold tracking-wider animate-pulse">جاري العمل...</p>
+    </div>
 
-<!-- ====================== LOGIN ====================== -->
-<div id="loginModal" class="fixed inset-0 bg-black flex items-center justify-center z-50">
-<div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full border-t-8 border-orange-600 text-center">
-<h2 class="text-3xl font-bold text-white mb-4">تسجيل الدخول</h2>
-<input type="text" id="loginName" placeholder="ID" onkeydown="handleEnter(event,'loginPin')" class="w-full mb-3 bg-gray-700 border border-gray-600 p-3 rounded-lg text-center">
-<input type="password" id="loginPin" placeholder="PIN" onkeydown="handleEnter(event,'loginBtn')" class="w-full mb-6 bg-gray-700 border border-gray-600 p-3 rounded-lg text-center">
-<button onclick="loginSystem()" id="loginBtn" disabled class="w-full bg-gray-600 text-gray-400 py-3 rounded-xl font-bold cursor-not-allowed">انتظر...</button>
-<p id="errorMsg" class="hidden mt-4 text-xs text-red-300 bg-red-900/50 p-2 rounded"></p>
-</div>
-</div>
+    <div id="loginModal" class="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md w-full border-t-4 border-orange-600 relative text-center">
+            <img src="unnamed.png" class="w-24 h-24 mx-auto mb-4 rounded-full shadow-lg border-2 border-orange-500" alt="Logo">
+            <h2 class="text-3xl font-extrabold text-white mb-6">تسجيل الدخول</h2>
+            <input type="text" id="loginName" placeholder="اسم المستخدم (ID)" onkeydown="handleEnter(event,'loginPin')" class="w-full mb-4 bg-gray-700 border border-gray-600 p-4 rounded-xl text-center text-lg focus:bg-gray-600 transition">
+            <input type="password" id="loginPin" placeholder="الرقم السري (PIN)" onkeydown="handleEnter(event,'loginBtn')" class="w-full mb-6 bg-gray-700 border border-gray-600 p-4 rounded-xl text-center text-lg focus:bg-gray-600 transition tracking-widest">
+            <button onclick="loginSystem()" id="loginBtn" disabled class="w-full bg-gray-600 text-gray-400 py-4 rounded-xl font-bold text-lg cursor-not-allowed transition duration-300">جاري الاتصال...</button>
+            <p id="errorMsg" class="hidden mt-4 text-sm text-red-200 bg-red-900/60 p-3 rounded-lg border border-red-500"></p>
+        </div>
+    </div>
 
-<!-- ====================== CARD SELECT ====================== -->
-<div id="cardModal" class="hidden fixed inset-0 flex items-center justify-center">
-<div class="bg-gray-900 rounded-2xl p-6 max-w-3xl w-full mx-4 border-t-4 border-orange-600">
-<h2 class="text-2xl font-bold text-center mb-6">اختر الفئة</h2>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center font-bold">
-<div onclick="selectCardType('500')" class="cursor-pointer hover:scale-105"><img src="salamtk300.jpg"><p class="mt-2 text-yellow-400">فئة 500 ريال</p></div>
-<div onclick="selectCardType('200')" class="cursor-pointer hover:scale-105"><img src="salamtk200.jpg"><p class="mt-2 text-teal-400">فئة 200 ريال</p></div>
-<div onclick="selectCardType('100')" class="cursor-pointer hover:scale-105"><img src="salamtk100.jpg"><p class="mt-2 text-purple-400">فئة 100 ريال</p></div>
-</div>
-</div>
-</div>
+    <div id="cardModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/90 z-40">
+        <div class="bg-gray-800 rounded-2xl p-8 max-w-4xl w-full mx-4 border-t-4 border-green-500 shadow-2xl">
+            <h2 class="text-3xl font-bold text-center mb-8 text-white">اختر الفئة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div onclick="selectCardType('500')" class="card-select bg-gray-700 p-4 rounded-xl cursor-pointer">
+                    <img src="salamtk300.jpg" alt="500" class="mb-3">
+                    <p class="text-xl font-bold text-yellow-400">فئة 500 ريال</p>
+                </div>
+                <div onclick="selectCardType('200')" class="card-select bg-gray-700 p-4 rounded-xl cursor-pointer">
+                    <img src="salamtk200.jpg" alt="200" class="mb-3">
+                    <p class="text-xl font-bold text-teal-400">فئة 200 ريال</p>
+                </div>
+                <div onclick="selectCardType('100')" class="card-select bg-gray-700 p-4 rounded-xl cursor-pointer">
+                    <img src="salamtk100.jpg" alt="100" class="mb-3">
+                    <p class="text-xl font-bold text-purple-400">فئة 100 ريال</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<!-- ====================== MAIN ====================== -->
-<div id="mainContent" class="hidden max-w-5xl mx-auto p-4">
-<!-- HEADER -->
-<div class="flex justify-between bg-gray-800 p-4 rounded-xl border border-gray-700 mb-4">
-<div>
-<p class="text-xs text-gray-400">مرحباً</p>
-<h1 class="text-xl font-bold" id="displayEmployeeName">--</h1>
-</div>
-<div class="flex gap-2">
-<button id="adminBtn" onclick="openActivity()" class="hidden bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold"><i class="fa-solid fa-gear"></i> السجل</button>
-<button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-500 px-4 py-2 rounded-lg"><i class="fa-solid fa-key"></i></button>
-<button onclick="location.reload()" class="bg-gray-600 px-4 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i></button>
-</div>
-</div>
+    <div id="mainContent" class="hidden max-w-6xl mx-auto p-4 md:p-6">
+        <div class="flex flex-wrap justify-between items-center bg-gray-800 p-5 rounded-2xl border border-gray-700 mb-6 shadow-lg gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-gradient-to-r from-orange-500 to-red-600 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow overflow-hidden">
+                    <img src="unnamed.png" alt="User" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400">مرحباً</p>
+                    <h1 class="text-xl font-bold text-white tracking-wide" id="displayEmployeeName">--</h1>
+                </div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <button id="adminBtn" onclick="openActivity()" class="hidden bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition"><i class="fa-solid fa-list-check"></i> السجل</button>
+                <button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition"><i class="fa-solid fa-key"></i></button>
+                <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
 
-<!-- MANUAL ENTRY -->
-<div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
-<div class="grid grid-cols-2 gap-4">
-<input id="cardNo" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم البطاقة">
-<input id="pNameInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="اسم المريض">
-<input id="fileNoInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم الملف">
-<input id="invNoInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="رقم الفاتورة">
-<input id="pDateInput" class="bg-gray-900 border border-gray-600 p-3 rounded" placeholder="التاريخ">
-<input disabled class="bg-gray-900 border border-gray-600 p-3 rounded text-center font-bold" id="currentCategoryBadge" value="--">
-</div>
-<button onclick="saveEntryToCloud()" class="mt-4 w-full bg-green-600 py-3 font-bold rounded-xl">حفظ</button>
-</div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <div id="cameraBox" class="camera-container scanning mb-4 shadow-2xl bg-black">
+                    <video id="video" autoplay playsinline muted></video>
+                    <img id="imagePreview" class="w-full h-full object-contain hidden bg-black">
+                    <div class="scan-line"></div>
+                    <div class="overlay-status absolute bottom-0 left-0 right-0 p-3 bg-black/70 text-center font-bold" id="statusText"><span class="text-gray-300">جاهز...</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition transform active:scale-95"><i class="fa-solid fa-camera"></i> الكاميرا</button>
+                    <div class="relative">
+                        <button onclick="document.getElementById('fileIn').click()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl shadow-lg transition"><i class="fa-solid fa-file-image"></i> صورة/PDF</button>
+                        <input type="file" id="fileIn" class="hidden" accept="image/*,application/pdf" onchange="handleFile(this)">
+                    </div>
+                </div>
+            </div>
 
-<!-- TABLE -->
-<div class="mt-6 bg-white rounded-xl overflow-hidden">
-<table class="w-full text-sm text-gray-700 excel-table bg-white">
-<thead><tr><th>SN</th><th>CARD</th><th>PATIENT</th><th>FILE</th><th>INV</th><th>DATE</th><th>CAT</th><th>PROFIT</th><th>#</th></tr></thead>
-<tbody id="tbody"></tbody>
-</table>
-</div>
-</div>
+            <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl mb-6 h-fit">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="col-span-1 md:col-span-2">
+                        <label class="text-xs text-gray-400 mb-1 block">رقم البطاقة</label>
+                        <input id="cardNo" class="w-full bg-gray-900 border-2 border-gray-600 p-3 rounded-xl text-center font-mono text-xl font-bold focus:border-orange-500 transition" placeholder="---">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 mb-1 block">اسم المريض</label>
+                        <input id="pNameInput" class="w-full bg-gray-900 border border-gray-600 p-2.5 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 mb-1 block">رقم الملف</label>
+                        <input id="fileNoInput" class="w-full bg-gray-900 border border-gray-600 p-2.5 rounded-lg text-sm font-mono text-blue-300">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 mb-1 block">رقم الفاتورة</label>
+                        <input id="invNoInput" class="w-full bg-gray-900 border border-gray-600 p-2.5 rounded-lg text-sm font-mono text-red-300">
+                    </div>
+                    <div class="relative">
+                        <label class="text-xs text-gray-400 mb-1 block">التاريخ</label>
+                        <div class="flex items-center">
+                            <input id="pDateInput" class="w-full bg-gray-900 border border-gray-600 p-2.5 rounded-lg text-sm text-center">
+                            <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-6"><i class="fa-solid fa-calendar-days"></i></button>
+                            <input type="date" id="datePickerHidden" class="absolute opacity-0 bottom-0 left-0 w-0 h-0" onchange="document.getElementById('pDateInput').value = this.value">
+                        </div>
+                    </div>
+                </div>
+                <input disabled class="w-full bg-gray-700 border border-gray-600 p-2.5 rounded-lg text-center font-bold text-yellow-400 mb-4 cursor-not-allowed" id="currentCategoryBadge" value="--">
+                <button onclick="saveEntryToCloud()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 text-white py-3 rounded-xl font-bold shadow-lg transition transform active:scale-95"><i class="fa-solid fa-cloud-arrow-up"></i> حفظ البيانات</button>
+            </div>
+        </div>
 
-<!-- ====================== CHANGE PIN MODAL ====================== -->
-<div id="changePinModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80">
-<div class="bg-gray-900 p-6 rounded-xl w-80 text-center">
-<h3 class="text-xl font-bold mb-2">تغيير الرقم السري</h3>
-<input id="oldPinInput" placeholder="الحالي" class="w-full mb-2 bg-gray-800 p-2 rounded">
-<input id="newPinInput" placeholder="الجديد" class="w-full mb-4 bg-gray-800 p-2 rounded">
-<button onclick="submitChangePin()" class="bg-yellow-500 px-4 py-2 rounded w-full">تغيير</button>
-</div>
-</div>
+        <div class="bg-white rounded-2xl overflow-hidden shadow-2xl border border-gray-700">
+            <div class="flex justify-between items-center bg-gray-100 p-3 border-b flex-wrap gap-2">
+                <div class="flex gap-2">
+                    <button onclick="exportXLS()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                    <div class="relative">
+                        <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1"><i class="fa-solid fa-folder-open"></i> استيراد</button>
+                        <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
+                    </div>
+                    <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow"><i class="fa-solid fa-sync"></i></button>
+                </div>
+                <div class="text-right font-bold text-green-700 text-lg px-2" id="totalProfitDisplay">0 ريال</div>
+            </div>
+            <div class="overflow-x-auto max-h-[500px]">
+                <table class="w-full text-sm text-center text-gray-700 whitespace-nowrap excel-table bg-white">
+                    <thead class="sticky top-0 z-10 shadow-md">
+                        <tr>
+                            <th class="p-3">#</th>
+                            <th class="p-3">البطاقة</th>
+                            <th class="p-3">المريض</th>
+                            <th class="p-3">الملف</th>
+                            <th class="p-3">الفاتورة</th>
+                            <th class="p-3">التاريخ</th>
+                            <th class="p-3">الفئة</th>
+                            <th class="p-3">الربح</th>
+                            <th class="p-3 bg-gray-800 text-white">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<!-- ====================== ACTIVITY LOG ====================== -->
-<div id="activityModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
-<div class="bg-gray-900 p-6 rounded-xl max-w-3xl w-full border border-gray-600">
-<h2 class="text-xl font-bold mb-4">سجل النشاط</h2>
-<table class="w-full text-sm bg-white text-gray-700 excel-table">
-<thead><tr><th>المستخدم</th><th>العملية</th><th>تفاصيل</th><th>الوقت</th></tr></thead>
-<tbody id="logBody"></tbody>
-</table>
-<button onclick="activityModal.classList.add('hidden')" class="mt-4 bg-red-600 px-4 py-2 rounded text-white">إغلاق</button>
-</div>
-</div>
+    <div id="changePinModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80 z-50">
+        <div class="bg-gray-800 p-6 rounded-2xl w-80 text-center border border-gray-600 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-white">تغيير الرقم السري</h3>
+            <input type="password" id="oldPinInput" placeholder="الرقم الحالي" class="w-full mb-3 bg-gray-900 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full mb-6 bg-gray-900 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <div class="flex gap-2">
+                <button onclick="submitChangePin()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg w-full font-bold">حفظ</button>
+                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg w-full font-bold">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="activityModal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+        <div class="bg-gray-900 p-6 rounded-2xl max-w-4xl w-full border border-gray-700 h-[80vh] flex flex-col mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white">📜 سجل النشاط</h2>
+                <button onclick="document.getElementById('activityModal').classList.add('hidden')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times fa-lg"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 rounded-lg border border-gray-700">
+                <table class="w-full text-sm bg-white text-gray-900 text-center">
+                    <thead class="bg-gray-200 sticky top-0"><tr><th class="p-3">المستخدم</th><th class="p-3">العملية</th><th class="p-3">التفاصيل</th><th class="p-3">التوقيت</th></tr></thead>
+                    <tbody id="logBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
 <script>
-/* ========= CONFIG ========= */
+        // ==========================================
+        // 🔴 هام: استبدل الرابط والمفتاح هنا
+        // ==========================================
         const SUPABASE_URL = 'https://lhprxtnrnvkcedhcwpma.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxocHJ4dG5ybnZrY2VkaGN3cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODk3NzgsImV4cCI6MjA4MDc2NTc3OH0.4Xnqz0nWxpfp4TPEiQzuFmAsLzUWZt2PjJ3MtJmmKsc'; 
+        // ==========================================
+    
+    let db = null;
+    if(typeof supabase !== 'undefined') db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null, currentRole = "user", currentFullName = "";
+    let employeeData = [], currentCardValue = "", currentCommission = 0;
+    let stream = null, isScanning = false, scanInterval = null;
+
+    /* ========= HELPERS ========= */
+    function showLoader(b){ document.getElementById('globalLoader').classList.toggle('hidden',!b); }
+    function showError(m){ const e=document.getElementById('errorMsg'); e.textContent=m; e.classList.remove('hidden'); }
+    function handleEnter(e,n){ if(e.key==="Enter"){ e.preventDefault(); document.getElementById(n).focus(); } }
+
+    /* ========= INIT ========= */
+    async function checkConnection(){
+        const btn = document.getElementById('loginBtn');
+        if(!db) { alert("مكتبة Supabase لم تحمل!"); return; }
+        try{
+            await db.from("users").select("count", { count: 'exact', head: true });
+            btn.disabled=false; btn.classList.remove("cursor-not-allowed");
+            btn.classList.replace("bg-gray-600", "bg-orange-600"); btn.textContent="دخول 🔐";
+        } catch(e){ showError("⚠ فشل الاتصال: " + e.message); }
+    }
+
+    /* ========= LOGIN ========= */
+    async function loginSystem(){
+        const name = document.getElementById('loginName').value.trim();
+        const pin = document.getElementById('loginPin').value.trim();
+        if(!name || !pin) return showError("البيانات ناقصة");
+
+        showLoader(true);
+        const {data,error} = await db.from("users").select("*").eq("username",name).eq("pin",pin).maybeSingle();
+        showLoader(false);
+
+        if(error || !data) return showError("❌ خطأ في البيانات");
         
-let db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        if(!data.full_name) { alert("⚠ لا يوجد اسم كامل مسجل! تواصل مع المشرف."); return; }
 
-let currentUser = null, currentRole = "user", currentFullName = "";
-let employeeData = [], currentCardValue = "", currentCommission = 0;
+        currentUser = data.username; currentRole = data.role; currentFullName = data.full_name;
+        await logAction("LOGIN", "دخول ناجح");
+        enterSystem();
+    }
 
-/* ========= HELPERS ========= */
-function showLoader(b){globalLoader.classList.toggle('hidden',!b);}
-function showError(m){errorMsg.textContent=m;errorMsg.classList.remove('hidden');}
-function handleEnter(e,n){if(e.key==="Enter"){e.preventDefault();document.getElementById(n).focus();}}
+    function enterSystem(){
+        document.getElementById('loginModal').classList.add("hidden");
+        document.getElementById('cardModal').classList.remove("hidden");
+        document.getElementById('displayEmployeeName').textContent = currentFullName;
+        if(currentRole === "admin") document.getElementById('adminBtn').classList.remove("hidden");
+        fetchDataFromCloud();
+    }
 
-/* ========= INIT ========= */
-async function checkConnection(){
-try{await db.from("users").select("*");loginBtn.disabled=false;loginBtn.classList.remove("cursor-not-allowed");loginBtn.textContent="دخول 🔐";}
-catch(e){alert("⚠ لا يوجد اتصال بقاعدة البيانات!");}
-}
+    /* ========= LOG ========= */
+    async function logAction(action, details=""){
+        try { await db.from("activity_log").insert([{ username: currentUser, action: action, details: details }]); } catch(e){}
+    }
+    async function openActivity(){
+        document.getElementById('activityModal').classList.remove("hidden");
+        const {data} = await db.from("activity_log").select("*").order("id",{ascending:false}).limit(50);
+        const tbody = document.getElementById('logBody'); tbody.innerHTML = "";
+        if(data) data.forEach(r => tbody.innerHTML += `<tr><td class="p-2">${r.username}</td><td class="p-2 font-bold text-blue-600">${r.action}</td><td class="p-2 text-gray-600">${r.details}</td><td class="p-2 text-xs">${new Date(r.created_at).toLocaleString('en-GB')}</td></tr>`);
+    }
 
-/* ========= LOGIN ========= */
-async function loginSystem(){
-showLoader(true);
-const {data,error}=await db.from("users").select("*").eq("username",loginName.value.trim()).eq("pin",loginPin.value.trim()).maybeSingle();
-showLoader(false);
-if(error||!data)return showError("❌ خطأ في البيانات");
-if(!data.full_name)return alert("⚠ اسمك غير موجود");
-currentUser=data.username;currentRole=data.role;currentFullName=data.full_name;
-await logAction("LOGIN",`تسجيل دخول`);
-enterSystem();
-}
-function enterSystem(){
-loginModal.classList.add("hidden");
-cardModal.classList.remove("hidden");
-displayEmployeeName.textContent=currentFullName;
-if(currentRole==="admin")adminBtn.classList.remove("hidden");
-fetchDataFromCloud();
-}
+    /* ========= CARD SELECT ========= */
+    function selectCardType(v){
+        currentCardValue = v; currentCommission = v==="500"?15 : v==="200"?10 : 5;
+        document.getElementById('currentCategoryBadge').value = `فئة ${v}`;
+        document.getElementById('cardModal').classList.add("hidden");
+        document.getElementById('mainContent').classList.remove("hidden");
+        document.getElementById('cardNo').focus();
+    }
 
-/* ========= LOG ========= */
-async function logAction(action,details=""){await db.from("activity_log").insert([{username:currentUser,action,details}]);}
-async function openActivity(){
-activityModal.classList.remove("hidden");
-const {data}=await db.from("activity_log").select("*").order("id",{ascending:false}).limit(50);
-logBody.innerHTML="";
-data.forEach(r=>logBody.innerHTML+=`<tr><td>${r.username}</td><td>${r.action}</td><td>${r.details}</td><td>${r.created_at}</td></tr>`);
-}
+    /* ========= SAVE ========= */
+    async function saveEntryToCloud(){
+        const card=document.getElementById('cardNo').value.trim();
+        const pName=document.getElementById('pNameInput').value.trim();
+        const file=document.getElementById('fileNoInput').value.trim();
+        const inv=document.getElementById('invNoInput').value.trim();
+        const date=document.getElementById('pDateInput').value;
 
-/* ========= CARD SELECT ========= */
-function selectCardType(v){
-currentCardValue=v;
-currentCommission=v==="500"?15:v==="200"?10:5;
-currentCategoryBadge.value=`فئة ${v}`;
-cardModal.classList.add("hidden");
-mainContent.classList.remove("hidden");
-cardNo.focus();
-}
+        if(!card || !pName || !file || !inv || !date) return alert("⚠ البيانات ناقصة");
 
-/* ========= SAVE ========= */
-async function saveEntryToCloud(){
-if(!cardNo.value||!pNameInput.value||!fileNoInput.value||!invNoInput.value||!pDateInput.value)return alert("⚠ جميع الحقول مطلوبة");
-const {data:ex}=await db.from("invoices").select("id").eq("employee_id",currentUser).eq("card_no",cardNo.value).maybeSingle();
-if(ex)return alert("❌ مكرر!");
-const entry={employee_id:currentUser,card_no:cardNo.value,patient_name:pNameInput.value,file_no:fileNoInput.value,inv_no:invNoInput.value,inv_date:pDateInput.value,remark:currentCardValue,profit:currentCommission};
-await db.from("invoices").insert([entry]);
-await logAction("ADD_INVOICE",cardNo.value);
-alert("تم ✔");
-fetchDataFromCloud();
-clearInputs();
-}
-function clearInputs(){cardNo.value=fileNoInput.value=pNameInput.value=invNoInput.value=pDateInput.value="";cardNo.focus();}
+        showLoader(true);
+        const {data:ex} = await db.from("invoices").select("id").eq("employee_name", currentFullName).eq("card_no", card).maybeSingle();
+        if(ex) { showLoader(false); return alert("❌ مكرر!"); }
 
-/* ========= GET ========= */
-async function fetchDataFromCloud(){
-const {data}=await db.from("invoices").select("*").eq("employee_id",currentUser);
-employeeData=data||[];renderTable();
-}
+        const entry = { employee_name: currentFullName, card_no: card, patient_name: pName, file_no: file, inv_no: inv, inv_date: date, remark: currentCardValue, profit: currentCommission };
+        const {error} = await db.from("invoices").insert([entry]);
+        showLoader(false);
 
-/* ========= DELETE ========= */
-async function deleteFromCloud(id,card){
-if(!confirm("حذف؟"))return;
-await db.from("invoices").delete().eq("id",id);
-await logAction("DELETE_INVOICE",card);
-employeeData=employeeData.filter(i=>i.id!==id);renderTable();
-}
+        if(error) alert("فشل الحفظ: "+error.message);
+        else { await logAction("ADD", card); alert("تم ✔"); fetchDataFromCloud(); clearInputs(); }
+    }
 
-/* ========= CHANGE PIN ========= */
-async function submitChangePin(){
-const {data:ch}=await db.from("users").select("id").eq("username",currentUser).eq("pin",oldPinInput.value.trim()).maybeSingle();
-if(!ch)return alert("❌ خطأ");
-await db.from("users").update({pin:newPinInput.value.trim()}).eq("id",ch.id);
-await logAction("CHANGE_PIN");
-alert("تم ✔");changePinModal.classList.add("hidden");
-}
+    function clearInputs(){ ['cardNo','fileNoInput','pNameInput','invNoInput','pDateInput'].forEach(id=>document.getElementById(id).value=""); document.getElementById('cardNo').focus(); }
 
-/* ========= TABLE ========= */
-function renderTable(){
-tbody.innerHTML="";
-employeeData.forEach((r,i)=>tbody.innerHTML+=`
-<tr><td>${i+1}</td><td>${r.card_no}</td><td>${r.patient_name}</td><td>${r.file_no}</td><td>${r.inv_no}</td><td>${r.inv_date}</td><td>${r.remark}</td><td>${r.profit}</td>
-<td><button onclick="deleteFromCloud(${r.id},'${r.card_no}')" class="text-red-600">🗑</button></td></tr>`);
-}
+    /* ========= FETCH & DELETE ========= */
+    async function fetchDataFromCloud(){
+        showLoader(true);
+        const {data} = await db.from("invoices").select("*").eq("employee_name", currentFullName).order("id",{ascending:true});
+        showLoader(false); employeeData = data || []; renderTable();
+    }
+    async function deleteFromCloud(id, card){
+        if(!confirm("حذف؟")) return;
+        showLoader(true);
+        await db.from("invoices").delete().eq("id", id);
+        showLoader(false);
+        await logAction("DELETE", card);
+        employeeData = employeeData.filter(i=>i.id!==id); renderTable();
+    }
+
+    /* ========= SMART IMPORT (V28/V44 LOGIC) ========= */
+    async function smartImport(input) {
+        const file = input.files[0]; if (!file) return;
+        if(!confirm("دمج البيانات المكتملة فقط؟")) { input.value = ''; return; }
+        showLoader(true);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: ""});
+                
+                const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
+                const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
+
+                let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
+                let headerRowIndex = -1;
+                for(let i=0; i<Math.min(20, jsonData.length); i++) {
+                    const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                    if(rowStr.includes("CARD") || rowStr.includes("PATIENT")) {
+                        headerRowIndex = i;
+                        const header = jsonData[i].map(h => String(h).toUpperCase().trim());
+                        header.forEach((h, idx) => { if(h.includes("CARD")) colMap.card = idx; if(h.includes("NAME")) colMap.name = idx; if(h.includes("FILE")) colMap.file = idx; if(h.includes("INV")) colMap.inv = idx; if(h.includes("DATE")) colMap.date = idx; if(h.includes("REMARK")) colMap.remark = idx; if(h.includes("PROFIT")) colMap.profit = idx; });
+                        break;
+                    }
+                }
+                const entriesToUpload = [];
+                const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
+                let skipped=0, duplicates=0;
+
+                for (let i = startRow; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0) continue;
+                    let entry = { employee_name: currentFullName, remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' };
+                    
+                    if (headerRowIndex !== -1) {
+                        if (colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                        if (colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                        if (colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                        if (colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                        if (colMap.date > -1) { let dVal = row[colMap.date]; if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); else entry.inv_date = String(dVal || '').trim(); }
+                        if (colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                    } else {
+                        // Fallback Logic (The Good Old V44 Logic)
+                        row.forEach(cell => { let s = String(cell).trim(); if(!s) return; if(s.toUpperCase().endsWith('L') && s.length > 5) entry.file_no = s; else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/',''); else if(/^\d+$/.test(s) && s.length > 3 && !['100','200','500'].includes(s)) entry.card_no = s; else if(['100','200','500'].includes(s)) entry.remark = s; else if(s.length > 3 && !/\d/.test(s)) entry.patient_name = s; else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s; });
+                    }
+
+                    if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+                    if (!entry.card_no || !entry.patient_name || !entry.inv_no) { skipped++; continue; }
+                    if (existingSet.has(entry.card_no)) { duplicates++; continue; }
+                    entriesToUpload.push(entry); existingSet.add(entry.card_no);
+                }
+
+                if(entriesToUpload.length > 0) {
+                    const { error } = await db.from('invoices').insert(entriesToUpload);
+                    if(error) alert("خطأ: " + error.message);
+                    else { await logAction("IMPORT", `${entriesToUpload.length} imported`); alert(`✅ تم: ${entriesToUpload.length}\n🚫 مكرر: ${duplicates}\n⚠️ ناقص: ${skipped}`); await fetchDataFromCloud(); }
+                } else alert("لم يتم استيراد أي شيء.");
+            } catch(err) { console.error(err); alert("خطأ ملف"); } finally { showLoader(false); input.value = ''; }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    /* ========= OCR (V28 Logic) ========= */
+    async function startLiveScan() {
+        try {
+            document.getElementById('imagePreview').classList.add('hidden');
+            video.classList.remove('hidden');
+            document.getElementById('cameraBox').classList.add('scanning');
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream; video.play();
+            isScanning = true; scanInterval = setInterval(processFrame, 2000);
+        } catch(e) { alert("خطأ كاميرا: " + e.message); }
+    }
+    
+    function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
+    async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
+    async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); }
+    
+    function runOCR(b,l) {
+        Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{
+            const d=extractData(text);
+            if(l){ if(d.isValid){ stopCamera(); document.getElementById('cameraBox').classList.remove('scanning'); document.getElementById('cameraBox').classList.add('success'); fillForm(d); } }
+            else { fillForm(d); if(!d.isValid) alert("الصورة غير واضحة"); }
+        });
+    }
+
+    // THE OLD V28/V44 LOGIC FOR EXTRACTION
+    function extractData(text) {
+        const lines = text.split('\n');
+        let d = { file: '', name: '', date: '', inv: '', isValid: false };
+        
+        // 1. File Number
+        const fm = text.match(/\b00\d{5,}[1L]?\b/); 
+        if (fm) {
+            let rawFile = fm[0];
+            if (rawFile.endsWith('1')) rawFile = rawFile.slice(0, -1) + 'L';
+            if (!rawFile.endsWith('L')) rawFile += 'L';
+            d.file = rawFile;
+        }
+
+        // 2. Name
+        if (d.file) {
+            const l = lines.find(line => line.includes(fm[0]));
+            if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth/gi, '').replace(/[0-9]/g, '').replace(/[^\w\s]/g, '').trim();
+        }
+
+        // 3. Date (Flexible V28 Logic)
+        for (let l of lines) {
+            if (l.toLowerCase().includes('birth')) continue;
+            const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4}).*?[0-9].*?[aApP][mM]/);
+            if (m) { d.date = m[1].replace(/\s/g, '-').replace(/\./g, '-'); break; }
+        }
+        if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; }
+
+        // 4. Invoice (V28 Logic - Captures CSH, IA, OC...)
+        const csh = text.match(/CSH[\W_]*([A-Z]{2})[\W_]*([A-Z0-9]+)/i);
+        const dir = text.match(/\b(IA|IP|OP|CD)[-_]([0-9]+[A-Z]?)/);
+        const oc = text.match(/OC[-_]([A-Z0-9]+)/);
+        
+        if (csh) { d.inv = `${csh[1]}-${csh[2]}`; } 
+        else if (dir) { d.inv = `${dir[1]}-${dir[2]}`; } 
+        else if (oc) { d.inv = oc[0]; }
+
+        if (d.file && (d.inv || d.date)) d.isValid = true;
+        return d;
+    }
+
+    function fillForm(d) {
+        document.getElementById('fileNoInput').value = d.file;
+        document.getElementById('pNameInput').value = d.name;
+        document.getElementById('pDateInput').value = d.date;
+        document.getElementById('invNoInput').value = d.inv;
+    }
+
+    /* ========= CHANGE PIN ========= */
+    async function submitChangePin(){
+        const oldP=document.getElementById('oldPinInput').value.trim();
+        const newP=document.getElementById('newPinInput').value.trim();
+        if(!oldP||!newP)return alert("مطلوب");
+        const {data:u}=await db.from("users").select("id").eq("username",currentUser).eq("pin",oldP).maybeSingle();
+        if(!u)return alert("خطأ في القديم");
+        await db.from("users").update({pin:newP}).eq("id",u.id);
+        await logAction("CHANGE_PIN"); alert("تم"); document.getElementById('changePinModal').classList.add("hidden");
+    }
+
+    /* ========= EXPORT ========= */
+    function exportXLS() {
+        if(!employeeData.length) return alert("فارغ");
+        const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"];
+        const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ]));
+        const finalData = [[`سجل: ${currentFullName}`], [], header, ...data];
+        const ws = XLSX.utils.aoa_to_sheet(finalData);
+        if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } });
+        ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }];
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 14, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } }
+        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `Report_${currentFullName}.xlsx`);
+    }
+
+    function renderTable(){
+        const tbody = document.getElementById('tbody'); tbody.innerHTML = "";
+        let total = 0;
+        employeeData.forEach((r, i) => {
+            total += parseFloat(r.profit || 0);
+            tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-50 font-bold text-gray-500">${i+1}</td><td class="p-3 font-mono font-bold text-gray-800">${r.card_no}</td><td class="p-3 text-right font-bold text-gray-700">${r.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${r.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${r.inv_no}</td><td class="p-3 font-mono text-gray-500 text-xs">${r.inv_date}</td><td class="p-3 bg-yellow-100 font-bold text-black">${r.remark}</td><td class="p-3 font-bold text-green-600">+${r.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${r.id}, '${r.card_no}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
+        });
+        document.getElementById('totalProfitDisplay').textContent = `${total} ريال`;
+    }
 </script>
 
 </body>
