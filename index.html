@@ -35,19 +35,11 @@
         .card-select img { border-radius: 8px; width: 100%; height: auto; }
         input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
         
-        /* Camera Styling */
         .camera-container { position: relative; width: 100%; height: 350px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
         
-        .scan-box {
-            position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%;
-            border: 2px dashed rgba(255, 255, 255, 0.6);
-            border-radius: 12px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-            z-index: 10;
-            pointer-events: none;
-        }
+        .scan-box { position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 10; pointer-events: none; }
         .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
         .scanning .scan-line { display: block; }
         
@@ -159,6 +151,11 @@
                     <div class="scan-line"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-center font-bold text-white backdrop-blur-sm z-30" id="statusText">جاهز للمسح...</div>
                 </div>
+                
+                <button id="restartScanBtn" onclick="restartScan()" class="hidden mb-4 w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> مسح فاتورة جديدة
+                </button>
+
                 <div class="grid grid-cols-3 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
                     <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
@@ -278,206 +275,210 @@
         // --- 3. Save Entry ---
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
-            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
+            const pName = document.getElementById('pName').value.trim();
+            const fileNo = document.getElementById('fileNo').value.trim();
+            const invNo = document.getElementById('invNo').value.trim();
+            const pDate = document.getElementById('pDate').value.trim();
+
+            if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
+                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة.");
+            }
+
+            // Validating ending with L + Year
+            if(!/^\d{2}L$/i.test(fileNo.slice(-3)) || !/^\d{2}L$/i.test(invNo.slice(-3))) {
+                 return alert("⚠️ خطأ في التنسيق!\nيجب أن ينتهي رقم الملف والفاتورة برقم السنة + L (مثال: 25L)");
+            }
 
             showLoader(true);
             const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
             if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
-            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
+            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: pName, file_no: fileNo, inv_no: invNo, inv_date: pDate, remark: currentCardValue, profit: currentCommission };
             const { data, error } = await db.from('invoices').insert([entry]).select();
             showLoader(false);
             if(error) alert("فشل الحفظ: " + error.message);
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
 
-        // --- 4. Smart Import (Faster & Accurate) ---
+        // --- 4. Smart Import (Strict & Clean) ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
 
-            if (!confirm("سيتم استيراد الصفوف المكتملة فقط وتجاهل المكرر. موافق؟")) {
-                input.value = '';
-                return;
-            }
+            if(!confirm("سيتم استيراد البيانات المكتملة فقط. موافق؟")) { input.value = ''; return; }
 
             showLoader(true);
             const reader = new FileReader();
-
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy' });
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy'});
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1, defval: "", raw: false});
 
-                    const { data: existingData, error } = await db
-                        .from('invoices')
-                        .select('inv_no')
-                        .eq('employee_id', currentUser);
+                    const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
+                    const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
 
-                    if (error) throw error;
-
-                    const existingSet = new Set(existingData ? existingData.map(i => String(i.inv_no).trim()) : []);
-
-                    let imported = 0;
-                    let duplicates = 0;
-                    let missing = 0;
-                    const rowsToInsert = [];
-
-                    for (let r of jsonData) {
-                        let card = r["CARD NO"] || r["card_no"];
-                        let name = r["PATIENT NAME"] || r["patient_name"];
-                        let fileNo = r["FILE NO."] || r["file_no"];
-                        let invNo = r["INV. NO."] || r["inv_no"];
-                        let date = r["DATE"] || r["inv_date"];
-                        let remark = r["REMARK"] || "100";
-                        let profit = r["PROFIT (SAR)"] || r["profit"];
-
-                        // Clean Data
-                        card = card ? String(card).trim() : "";
-                        invNo = invNo ? String(invNo).trim() : "";
-                        fileNo = fileNo ? String(fileNo).trim() : "";
-                        name = name ? String(name).trim() : "";
-
-                        // Handle Profit Logic if missing
-                        if(!profit) {
-                            if(remark == '500') profit = 15;
-                            else if(remark == '200') profit = 10;
-                            else profit = 5;
+                    let headerRowIndex = -1;
+                    for(let i=0; i<Math.min(20, jsonData.length); i++) {
+                        const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                        if(rowStr.includes("CARD") && (rowStr.includes("PATIENT") || rowStr.includes("NAME"))) { 
+                            headerRowIndex = i; break; 
                         }
-
-                        if (!invNo || !fileNo || !card || !name) {
-                            missing++;
-                            continue;
-                        }
-
-                        if (existingSet.has(invNo)) {
-                            duplicates++;
-                            continue;
-                        }
-
-                        let finalDate = date;
-                        if (date instanceof Date) {
-                            finalDate = date.toLocaleDateString('en-GB');
-                        }
-
-                        rowsToInsert.push({
-                            employee_name: currentFullName,
-                            employee_id: currentUser,
-                            card_no: card,
-                            patient_name: name,
-                            file_no: fileNo,
-                            inv_no: invNo,
-                            inv_date: finalDate,
-                            remark: String(remark),
-                            profit: profit
-                        });
-
-                        existingSet.add(invNo);
-                        imported++;
                     }
 
-                    if (rowsToInsert.length > 0) {
-                        const { error: insertError } = await db.from("invoices").insert(rowsToInsert);
-                        if (insertError) throw insertError;
-                    }
-
-                    showLoader(false);
+                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     
-                    alert(
-                        `📊 تقرير الاستيراد:\n` +
-                        `✅ تم إضافة: ${imported}\n` +
-                        `⛔ مكرر (تم رفضه): ${duplicates}\n` +
-                        `⚠️ ناقص بيانات: ${missing}`
-                    );
+                    if(headerRowIndex > -1) {
+                         const header = jsonData[headerRowIndex].map(h => String(h).toUpperCase().trim());
+                         header.forEach((h, idx) => {
+                            if(h.includes("CARD")) colMap.card = idx;
+                            if(h.includes("PATIENT")) colMap.name = idx;
+                            else if(h.includes("NAME") && !h.includes("EMP") && !h.includes("USER") && colMap.name === -1) colMap.name = idx;
+                            if(h.includes("FILE")) colMap.file = idx;
+                            if(h.includes("INV")) colMap.inv = idx;
+                            if(h.includes("DATE")) colMap.date = idx;
+                            if(h.includes("REMARK")) colMap.remark = idx;
+                            if(h.includes("PROFIT")) colMap.profit = idx;
+                        });
+                    }
 
-                    fetchDataFromCloud();
+                    const entriesToUpload = [];
+                    const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
+                    let skippedCount = 0;
+                    let duplicatesCount = 0;
+                    let successCount = 0;
 
-                } catch (err) {
-                    console.error(err);
-                    showLoader(false);
-                    alert("خطأ في معالجة الملف: " + err.message);
-                } finally {
-                    input.value = '';
-                }
+                    for (let i = startRow; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length === 0) continue;
+
+                        let entry = { 
+                            employee_name: currentFullName, employee_id: currentUser,
+                            remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
+                        };
+                        
+                        // Populate entry logic (same as V66/68)
+                         if (headerRowIndex !== -1) {
+                            if(colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                            if(colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                            if(colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                            if(colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                            if(colMap.date > -1) { let dVal = row[colMap.date]; if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); else entry.inv_date = String(dVal || '').trim(); }
+                            if(colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if(colMap.profit > -1) entry.profit = row[colMap.profit];
+                        } else {
+                            Object.values(row).forEach(v => {
+                                let s = String(v).trim();
+                                if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(s.endsWith('L')) entry.file_no = s;
+                                else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
+                                else if(s.length > 5 && !/\d/.test(s) && !s.match(/CASH|CREDIT/i)) entry.patient_name = s;
+                                else if(['100','200','500'].includes(s)) { entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5); }
+                            });
+                        }
+                        
+                        if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
+
+                        // 🔥 Strict Filter: Must end with L 🔥
+                        if (!/^\d{2}L$/i.test(entry.file_no.slice(-3)) || !/^\d{2}L$/i.test(entry.inv_no.slice(-3))) {
+                             skippedCount++; continue;
+                        }
+
+                        if (!entry.card_no || !entry.patient_name || !entry.inv_date) {
+                            skippedCount++; continue; 
+                        }
+
+                        if (existingSet.has(entry.card_no)) {
+                            duplicatesCount++; continue;
+                        }
+
+                        entriesToUpload.push(entry);
+                        existingSet.add(entry.card_no);
+                        successCount++;
+                    }
+
+                    if(entriesToUpload.length > 0) {
+                        const { error } = await db.from('invoices').insert(entriesToUpload);
+                        if(error) alert("خطأ: " + error.message);
+                        else { 
+                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص/صيغة خطأ: ${skippedCount}`); 
+                            await fetchDataFromCloud(); 
+                        }
+                    } else {
+                        alert(`❌ لم يتم استيراد أي بيانات!\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص/صيغة خطأ: ${skippedCount}`);
+                    }
+
+                } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
             };
-
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 5. OCR Logic (Smart V72) ---
-        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
-        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
+        // --- 5. OCR Logic (Smart V74) ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); document.getElementById('restartScanBtn').classList.add('hidden'); document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جارٍ المسح...</span>"; stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        function restartScan() { startLiveScan(); }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
-        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>"; document.getElementById('restartScanBtn').classList.remove('hidden'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
         
-        // V72 Logic
+        // 🔥 OCR Extraction Logic V74 (Strict Ending Rule) 🔥
         function extractData(text) { 
             const lines = text.split('\n'); 
             let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
-            const fm = text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); 
+            
+            // File No: Must end with 2 digits + L
+            const fm = text.match(/\b[0O]{2}\d{5,}[0-9L]{2}\b/i); 
             if (fm) { 
-                let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L');
-                if (!raw.toUpperCase().endsWith('L')) raw += 'L';
+                let raw = fm[0].replace(/O/gi, '0');
+                // Auto-correct: if ends with 1 -> L (common OCR error)
+                if(raw.endsWith('1')) raw = raw.slice(0, -1) + 'L';
+                if(!raw.endsWith('L')) raw += 'L'; // Enforce L if missing but detected
+                
                 d.file = raw.toUpperCase();
             } 
+            
+            // Name (Cleaned)
             if (d.file) { 
                 const l = lines.find(line => line.includes(fm[0])); 
                 if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
             } 
-            const invMatch = text.match(/\b([0OA-Z]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
+            
+            // Invoice: Clean CSH, Enforce L at end
+            const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+([0-9]+[0-9L]?)\b/i);
             if (invMatch) {
-                let prefix = invMatch[1].toUpperCase();
-                if(prefix.startsWith('0')) prefix = 'O' + prefix[1];
-                if(prefix === '00' || prefix === '0O') prefix = 'OO';
-                d.inv = `${prefix}-${invMatch[2]}`;
+                 let prefix = invMatch[1].toUpperCase();
+                 let number = invMatch[2];
+                 if(prefix.startsWith('0')) prefix = 'O' + prefix[1]; // 0C -> OC
+                 if(prefix === '00') prefix = 'OO';
+
+                 if(number.endsWith('1')) number = number.slice(0, -1) + 'L';
+                 if(!number.endsWith('L')) number += 'L';
+
+                 d.inv = `${prefix}-${number.toUpperCase()}`;
             }
+
+            // Date (V71 Logic)
             for (let l of lines) { 
                 let c = l.toLowerCase(); 
                 if (c.includes('birth')||c.includes('dob')||c.includes('gender')) continue; 
-                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
-                if (m) {
-                    const yearStr = m[0].match(/\d{4}/);
-                    if(yearStr && parseInt(yearStr[0]) >= 2025) {
-                        d.date = m[0].replace(/[\s/.]/g, '-');
-                        break; 
+                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); 
+                if (m && (c.includes('am')||c.includes('pm')||c.includes(':'))) { 
+                    const year = m[0].match(/\d{4}/);
+                    if(year && parseInt(year[0]) >= 2025) {
+                        d.date = m[0].replace(/[\s/.]/g, '-'); break; 
                     }
-                }
+                } 
             } 
-            if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
             
-            if (d.file && (d.inv || d.date)) d.isValid = true; 
+            // Triple Check
+            if (d.file && d.inv && d.date && d.file.endsWith('L') && d.inv.endsWith('L')) d.isValid = true; 
             return d; 
         }
         function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
         
-        async function fetchDataFromCloud() {
-            showLoader(true);
-            const { data, error } = await db.from('invoices')
-                .select('*')
-                .or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`)
-                .order('id', { ascending: true });
-            
-            showLoader(false);
-            if(error) console.warn(error); 
-            employeeData = data || [];
-            renderTable();
-        }
-
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
-
-        function selectCardType(v) { currentCardValue = String(v); if(v == '100') currentCommission = 5; else if(v == '200') currentCommission = 10; else if(v == '500') currentCommission = 15; document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
-        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
-        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ const displayName=user.full_name?user.full_name:'-'; tbody.innerHTML+=`<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono tracking-wider">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3 flex justify-center gap-2"><button onclick="resetUserPin('${user.id}')" class="text-yellow-500"><i class="fa-solid fa-key"></i></button><button onclick="deleteUser('${user.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
-        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const fullName=document.getElementById('newFullName').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("مطلوب"); const {error}=await db.from('users').insert([{username:name,full_name:fullName,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); document.getElementById('newUsername').value=''; document.getElementById('newFullName').value=''; document.getElementById('newPin').value=''; } }
-        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
-        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
-        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
-        function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
-        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
         async function checkConnection() { const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn'); if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; } try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); } }
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
         function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
@@ -488,4 +489,3 @@
     </script>
 </body>
 </html>
-
