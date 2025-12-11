@@ -15,11 +15,6 @@
     <title>سلامتك</title>
 
 
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="سلامتك">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon.png">
-
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -35,13 +30,27 @@
         .excel-table th { background: linear-gradient(to bottom, #ca8a04, #a16207); color: #fff; padding: 10px; border: 1px solid #451a03; }
         .excel-table td { border: 1px solid #e5e7eb; background: white; color: #1f2937; padding: 8px; vertical-align: middle; }
         .excel-table tr:hover td { background-color: #f3f4f6; }
+        .card-select { transition: all 0.3s ease; border: 2px solid transparent; }
+        .card-select:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .card-select img { border-radius: 8px; width: 100%; height: auto; }
         input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+        
+        /* Camera Styling */
         .camera-container { position: relative; width: 100%; height: 350px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-box { position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 10; pointer-events: none; }
+        
+        .scan-box {
+            position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%;
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            pointer-events: none;
+        }
         .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
         .scanning .scan-line { display: block; }
+        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.95); }
         @keyframes scan { 0% { top: 20%; opacity: 0; } 50% { opacity: 1; } 100% { top: 80%; opacity: 0; } }
     </style>
@@ -66,6 +75,60 @@
         </div>
     </div>
 
+    <div id="adminPanelModal" class="fixed inset-0 flex items-center justify-center hidden modal z-50 bg-black/95">
+        <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-6xl w-full mx-4 border-2 border-red-600 h-[95vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-3xl font-bold text-red-500"><i class="fa-solid fa-user-shield"></i> لوحة التحكم</h2>
+                </div>
+                <button onclick="document.getElementById('adminPanelModal').classList.add('hidden')" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark fa-2x"></i></button>
+            </div>
+            
+            <div class="bg-gray-700/50 p-5 rounded-xl mb-6 border border-gray-600">
+                <h3 class="text-white font-bold mb-3 flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> إضافة / تعديل موظف:</h3>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    <div><label class="text-xs text-gray-400">ID</label><input type="text" id="newUsername" class="w-full bg-gray-800 border border-gray-500 p-2 rounded text-white text-center"></div>
+                    <div class="md:col-span-2"><label class="text-xs text-gray-400">الاسم الكامل</label><input type="text" id="newFullName" class="w-full bg-gray-800 border border-gray-500 p-2 rounded text-white text-center"></div>
+                    <div><label class="text-xs text-gray-400">PIN</label><input type="text" id="newPin" class="w-full bg-gray-800 border border-gray-500 p-2 rounded text-white text-center"></div>
+                    <div><label class="text-xs text-gray-400">الصلاحية</label><select id="newRole" class="w-full bg-gray-800 border border-gray-500 p-2 rounded text-white text-center"><option value="user">موظف</option><option value="admin">مدير</option></select></div>
+                </div>
+                <button onclick="addNewUser()" class="w-full mt-4 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold shadow-lg">حفظ</button>
+            </div>
+
+            <div class="overflow-y-auto flex-1 bg-gray-900 rounded-xl border border-gray-700">
+                <table class="w-full text-center text-sm text-gray-300">
+                    <thead class="bg-gray-800 text-gray-200 sticky top-0 shadow-md">
+                        <tr><th class="p-3">ID</th><th class="p-3 text-yellow-400">الاسم الكامل</th><th class="p-3">PIN</th><th class="p-3">الدور</th><th class="p-3">تحكم</th></tr>
+                    </thead>
+                    <tbody id="usersTableBody" class="divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+             <div class="mt-4 flex justify-end">
+                 <button onclick="loadAllUsers()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-rotate"></i> تحديث القائمة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cardModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/90 z-40">
+        <div class="bg-gray-900 rounded-2xl p-8 shadow-2xl max-w-5xl w-full mx-4 border-t-4 border-orange-600">
+            <h2 class="text-3xl font-bold text-white mb-8 text-center">اختر فئة البطاقة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="card-select bg-gray-800 p-4 rounded-xl cursor-pointer" onclick="selectCardType('100')">
+                    <img src="salamtk100.jpg" alt="100" class="mb-3">
+                    <p class="text-xl font-bold text-purple-400 text-center">فئة 100</p>
+                </div>
+                <div class="card-select bg-gray-800 p-4 rounded-xl cursor-pointer" onclick="selectCardType('200')">
+                    <img src="salamtk200.jpg" alt="200" class="mb-3">
+                    <p class="text-xl font-bold text-teal-400 text-center">فئة 200</p>
+                </div>
+                <div class="card-select bg-gray-800 p-4 rounded-xl cursor-pointer" onclick="selectCardType('500')">
+                    <img src="salamtk300.jpg" alt="500" class="mb-3">
+                    <p class="text-xl font-bold text-yellow-400 text-center">فئة 500</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="mainContent" class="hidden max-w-7xl mx-auto p-4 md:p-6">
         <div class="flex flex-wrap justify-between items-center bg-gray-800 p-5 rounded-2xl border border-gray-700 mb-6 shadow-xl gap-4">
             <div class="flex items-center gap-4">
@@ -78,6 +141,8 @@
                 </div>
             </div>
             <div class="flex gap-2 flex-wrap">
+                <button id="adminBtn" onclick="openAdminPanel()" class="hidden bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition"><i class="fa-solid fa-users-gear"></i> الإدارة</button>
+                 <button onclick="document.getElementById('changePinModal').classList.remove('hidden')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition"><i class="fa-solid fa-key"></i></button>
                  <button onclick="fixOldProfits()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-1" title="إصلاح الأرباح"><i class="fa-solid fa-wrench"></i> تصحيح</button>
                  <span class="hidden md:inline-flex items-center bg-gray-700 px-4 py-2 rounded-xl text-yellow-400 font-mono font-bold border border-gray-600" id="currentCategoryBadge">--</span>
                  <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg"><i class="fa-solid fa-power-off"></i> خروج</button>
@@ -89,15 +154,11 @@
                 <div id="cameraBox" class="camera-container scanning mb-4 shadow-2xl bg-black relative">
                     <video id="video" autoplay playsinline muted></video>
                     <img id="imagePreview" class="w-full h-full object-contain hidden bg-black absolute top-0 left-0 z-20">
+                    
                     <div class="scan-box"></div> 
                     <div class="scan-line"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-center font-bold text-white backdrop-blur-sm z-30" id="statusText">جاهز للمسح...</div>
                 </div>
-                
-                <button id="restartScanBtn" onclick="restartScan()" class="hidden mb-4 w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-rotate-right"></i> مسح جديد
-                </button>
-
                 <div class="grid grid-cols-3 gap-3 mb-6">
                     <button onclick="startLiveScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg col-span-1">📷 الكاميرا</button>
                     <button onclick="toggleFlash()" id="flashBtn" class="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-3 rounded-xl shadow-lg col-span-1 hidden">🔦 فلاش</button>
@@ -115,8 +176,8 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-bold text-sm text-gray-200 focus:bg-gray-900 transition"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الملف (ينتهي بـ L)</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-sm text-blue-300 focus:bg-gray-900 transition"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة (تنتهي بـ L)</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-red-400 text-sm focus:bg-gray-900 transition"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-sm text-blue-300 focus:bg-gray-900 transition"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-red-400 text-sm focus:bg-gray-900 transition"></div>
                     <div class="relative">
                         <label class="text-[10px] font-bold text-gray-400">التاريخ</label>
                         <div class="flex items-center">
@@ -138,11 +199,7 @@
                         <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2 transition hover:scale-105"><i class="fa-solid fa-folder-open"></i> استيراد</button>
                         <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls" onchange="smartImport(this)">
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="selectCardType('100')" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-xs">100</button>
-                        <button onclick="selectCardType('200')" class="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1 rounded text-xs">200</button>
-                        <button onclick="selectCardType('500')" class="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1 rounded text-xs">500</button>
-                    </div>
+                    <button onclick="document.getElementById('cardModal').classList.remove('hidden')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition hover:scale-105">الفئة 🔄</button>
                     <button onclick="fetchDataFromCloud()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg font-bold text-sm shadow transition hover:scale-105"><i class="fa-solid fa-sync"></i></button>
                 </div>
                 <div class="text-right"><span class="block text-xs text-gray-500">رصيدك</span><span class="text-green-700 font-extrabold text-2xl" id="totalProfitDisplay">0 ريال</span></div>
@@ -159,6 +216,18 @@
         <canvas id="canvas" class="hidden"></canvas>
     </div>
 
+    <div id="changePinModal" class="hidden fixed inset-0 flex items-center justify-center bg-black/80 z-50">
+        <div class="bg-gray-800 p-6 rounded-2xl w-80 text-center border border-gray-600 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-white">تغيير الرقم السري</h3>
+            <input type="password" id="oldPinInput" placeholder="الرقم الحالي" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <input type="password" id="newPinInput" placeholder="الرقم الجديد" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-center text-white">
+            <div class="flex gap-2">
+                <button onclick="submitChangePin()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg w-full font-bold">حفظ</button>
+                <button onclick="document.getElementById('changePinModal').classList.add('hidden')" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded-lg font-bold">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==========================================
         // 🔴 هام: استبدل الرابط والمفتاح هنا
@@ -169,16 +238,13 @@
 
         let db = null;
         let currentUser = null, currentRole = 'user', currentFullName = '';
-        let employeeData = [], currentCardValue = '100', currentCommission = 5;
+        let employeeData = [], currentCardValue = '', currentCommission = 0;
         let stream = null, isScanning = false, scanInterval = null;
-        const video = document.getElementById('video'); 
-        const canvas = document.createElement('canvas'); // Virtual canvas for processing
-        const cameraBox = document.getElementById('cameraBox');
+        const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- LOGIN ---
+        // --- 1. Login ---
         async function loginSystem() {
-            const name = document.getElementById('loginName').value.trim();
-            const pin = document.getElementById('loginPin').value.trim();
+            const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
             showLoader(true);
             const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
@@ -186,159 +252,240 @@
             if (error || !data) showError("❌ خطأ في الاسم أو الرقم السري");
             else { 
                 currentUser = data.username; currentRole = data.role; currentFullName = data.full_name;
-                if (!currentFullName) alert("⚠️ تنبيه: اسمك الكامل غير مسجل!");
+                if (!currentFullName) { alert("⚠️ تنبيه: اسمك الكامل غير مسجل!"); }
                 enterSystem(); 
             }
         }
+
         function enterSystem() {
             document.getElementById('displayEmployeeName').textContent = currentFullName || currentUser;
             document.getElementById('loginModal').classList.add('hidden');
-            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('cardModal').classList.remove('hidden');
+            if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
             fetchDataFromCloud();
         }
 
-        // --- SAVE ENTRY (STRICT VALIDATION) ---
+        // --- 2. Fix Profits ---
+        async function fixOldProfits() {
+            if(!confirm("سيقوم النظام بتصحيح أرباح فئة 200 إلى 10 ريال. هل أنت متأكد؟")) return;
+            showLoader(true);
+            const { error } = await db.from('invoices').update({ profit: 10 }).eq('employee_name', currentFullName).eq('remark', '200').neq('profit', 10);
+            showLoader(false);
+            if(error) alert("خطأ: " + error.message);
+            else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); }
+        }
+
+        // --- 3. Save Entry ---
         async function saveEntryToCloud() {
-            const card = document.getElementById('cardNo').value.trim();
-            const name = document.getElementById('pName').value.trim();
-            const file = document.getElementById('fileNo').value.trim();
-            const inv = document.getElementById('invNo').value.trim();
-            const date = document.getElementById('pDate').value.trim();
+            const manualCardNo = document.getElementById('cardNo').value.trim();
+            if (!manualCardNo || !document.getElementById('invNo').value) return alert("البيانات ناقصة");
 
-            if (!card || !name || !file || !inv || !date) return alert("⚠️ جميع الخانات مطلوبة.");
+            showLoader(true);
+            const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
+            if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
-            // 🔥 الشرط الجديد: يجب أن ينتهي بـ رقمين + L 🔥
-            // Regex: \d{2}L$ (رقمين ثم L في نهاية النص)
-            const yearL_Regex = /\d{2}L$/i;
-            
-            if (!yearL_Regex.test(file)) {
-                return alert(`⚠️ خطأ في رقم الملف (${file})\nيجب أن ينتهي برقم السنة وحرف L (مثال: 25L)`);
-            }
-            if (!yearL_Regex.test(inv)) {
-                return alert(`⚠️ خطأ في رقم الفاتورة (${inv})\nيجب أن ينتهي برقم السنة وحرف L (مثال: 25L)`);
+            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: document.getElementById('pName').value, file_no: document.getElementById('fileNo').value, inv_no: document.getElementById('invNo').value, inv_date: document.getElementById('pDate').value, remark: currentCardValue, profit: currentCommission };
+            const { data, error } = await db.from('invoices').insert([entry]).select();
+            showLoader(false);
+            if(error) alert("فشل الحفظ: " + error.message);
+            else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
+        }
+
+        // --- 4. Smart Import (Faster & Accurate) ---
+        async function smartImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            if (!confirm("سيتم استيراد الصفوف المكتملة فقط وتجاهل المكرر. موافق؟")) {
+                input.value = '';
+                return;
             }
 
             showLoader(true);
-            const { data: exist } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', card).maybeSingle();
-            if(exist) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
-
-            const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: card, patient_name: name, file_no: file, inv_no: inv, inv_date: date, remark: currentCardValue, profit: currentCommission };
-            const { error } = await db.from('invoices').insert([entry]);
-            showLoader(false);
-            if(error) alert("فشل الحفظ: " + error.message);
-            else { alert("✅ تم الحفظ!"); fetchDataFromCloud(); clearInputs(); }
-        }
-
-        // --- OCR (SMART L-CORRECTION) ---
-        function extractData(text) { 
-            const lines = text.split('\n'); 
-            let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
-            
-            // 1. File No (Corrects 1 to L at end)
-            // Pattern: Starts with 00, Ends with digit+L or digit+1
-            const fm = text.match(/\b[0O]{2}\d{5,}\d+[L1]\b/i); 
-            if (fm) { 
-                let raw = fm[0].replace(/O/gi, '0');
-                if (raw.endsWith('1')) raw = raw.slice(0, -1) + 'L'; // Fix 1 to L
-                d.file = raw.toUpperCase();
-            } 
-            
-            // 2. Name
-            if (d.file) { 
-                const l = lines.find(line => line.includes(fm[0])); 
-                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
-            } 
-            
-            // 3. Invoice (Corrects 0C and end L)
-            const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+(\d+)[L1]?\b/i);
-            if (invMatch) {
-                 let prefix = invMatch[1].toUpperCase();
-                 let number = invMatch[2];
-                 // Prefix fix
-                 if(prefix.startsWith('0')) prefix = 'O' + prefix[1];
-                 if(prefix === '00') prefix = 'OO';
-                 
-                 // Suffix fix: Ensure L at end
-                 // Note: we assume the capture group 2 is the digits. We append L.
-                 // If the text actually had '1' at the end, we treat it as L.
-                 d.inv = `${prefix}-${number}L`; 
-            }
-
-            // 4. Date (2025+ Filter)
-            for (let l of lines) { 
-                if (l.toLowerCase().includes('birth')) continue; 
-                const m = l.match(/(\d{1,2}[-_. /]*[A-Za-z]{3}[-_. /]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
-                if (m) {
-                    const yearStr = m[0].match(/\d{4}/);
-                    if(yearStr && parseInt(yearStr[0]) >= 2025) {
-                        d.date = m[0].replace(/[\s/.]/g, '-'); break; 
-                    }
-                } 
-            } 
-            
-            // Validation: Must have data AND end with L
-            if (d.file && d.inv && d.date && d.file.endsWith('L') && d.inv.endsWith('L')) {
-                d.isValid = true; 
-            }
-            return d; 
-        }
-
-        // --- Standard Functions ---
-        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.add('scanning'); document.getElementById('restartScanBtn').classList.add('hidden'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ: " + e.message); } }
-        function restartScan() { startLiveScan(); }
-        function stopCamera() { if(stream) stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
-        async function processFrame() { if(!isScanning) return; const ctx = canvas.getContext('2d'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; ctx.drawImage(video, 0, 0); canvas.toBlob(blob => { Tesseract.recognize(blob, 'eng').then(({ data: { text } }) => { const data = extractData(text); if(data.isValid) { stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>"; document.getElementById('restartScanBtn').classList.remove('hidden'); fillForm(data); } }); }, 'image/jpeg', 0.8); }
-        async function handleFile(input) { const f=input.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
-        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح أو لا ينتهي بـ L"); } }); }
-        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
-        async function fetchDataFromCloud() { showLoader(true); const { data, error } = await db.from('invoices').select('*').or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`).order('id', { ascending: true }); showLoader(false); if(error) console.warn(error); employeeData = data || []; renderTable(); }
-        async function deleteFromCloud(id) { if(confirm("حذف؟")) { await db.from('invoices').delete().eq('id', id); fetchDataFromCloud(); } }
-        function selectCardType(v) { currentCardValue=v; currentCommission=(v==='100'?5:(v==='200'?10:15)); document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; }
-        async function fixOldProfits() { if(confirm("تصحيح؟")) { await db.from('invoices').update({ profit: 10 }).eq('employee_name', currentFullName).eq('remark', '200'); fetchDataFromCloud(); } }
-        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const ws = XLSX.utils.json_to_sheet(employeeData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `Sales.xlsx`); }
-        
-        async function smartImport(input) {
-            const file = input.files[0]; if(!file) return;
             const reader = new FileReader();
-            reader.onload = async (e) => {
-                const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
-                const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
-                const toAdd = [];
-                const yearL_Regex = /\d{2}L$/i;
 
-                for(let row of rows) {
-                     // Simple Mapping Logic
-                     let entry = {employee_name:currentFullName, employee_id:currentUser, profit:5, remark:'100'};
-                     Object.values(row).forEach(v => {
-                         let s = String(v).trim();
-                         if(/^\d{4,}$/.test(s)) entry.card_no = s;
-                         else if(s.endsWith('L')) {
-                             if(s.includes('-')) entry.inv_no = s; else entry.file_no = s;
-                         }
-                         else if(s.length>3 && !/\d/.test(s)) entry.patient_name = s;
-                         else if(s.match(/\d{4}/)) entry.inv_date = s;
-                     });
-                     
-                     // Strict L Check for Import
-                     if(entry.file_no && yearL_Regex.test(entry.file_no) && entry.inv_no && yearL_Regex.test(entry.inv_no)) {
-                         toAdd.push(entry);
-                     }
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd-mm-yyyy' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                    const { data: existingData, error } = await db
+                        .from('invoices')
+                        .select('inv_no')
+                        .eq('employee_id', currentUser);
+
+                    if (error) throw error;
+
+                    const existingSet = new Set(existingData ? existingData.map(i => String(i.inv_no).trim()) : []);
+
+                    let imported = 0;
+                    let duplicates = 0;
+                    let missing = 0;
+                    const rowsToInsert = [];
+
+                    for (let r of jsonData) {
+                        let card = r["CARD NO"] || r["card_no"];
+                        let name = r["PATIENT NAME"] || r["patient_name"];
+                        let fileNo = r["FILE NO."] || r["file_no"];
+                        let invNo = r["INV. NO."] || r["inv_no"];
+                        let date = r["DATE"] || r["inv_date"];
+                        let remark = r["REMARK"] || "100";
+                        let profit = r["PROFIT (SAR)"] || r["profit"];
+
+                        // Clean Data
+                        card = card ? String(card).trim() : "";
+                        invNo = invNo ? String(invNo).trim() : "";
+                        fileNo = fileNo ? String(fileNo).trim() : "";
+                        name = name ? String(name).trim() : "";
+
+                        // Handle Profit Logic if missing
+                        if(!profit) {
+                            if(remark == '500') profit = 15;
+                            else if(remark == '200') profit = 10;
+                            else profit = 5;
+                        }
+
+                        if (!invNo || !fileNo || !card || !name) {
+                            missing++;
+                            continue;
+                        }
+
+                        if (existingSet.has(invNo)) {
+                            duplicates++;
+                            continue;
+                        }
+
+                        let finalDate = date;
+                        if (date instanceof Date) {
+                            finalDate = date.toLocaleDateString('en-GB');
+                        }
+
+                        rowsToInsert.push({
+                            employee_name: currentFullName,
+                            employee_id: currentUser,
+                            card_no: card,
+                            patient_name: name,
+                            file_no: fileNo,
+                            inv_no: invNo,
+                            inv_date: finalDate,
+                            remark: String(remark),
+                            profit: profit
+                        });
+
+                        existingSet.add(invNo);
+                        imported++;
+                    }
+
+                    if (rowsToInsert.length > 0) {
+                        const { error: insertError } = await db.from("invoices").insert(rowsToInsert);
+                        if (insertError) throw insertError;
+                    }
+
+                    showLoader(false);
+                    
+                    alert(
+                        `📊 تقرير الاستيراد:\n` +
+                        `✅ تم إضافة: ${imported}\n` +
+                        `⛔ مكرر (تم رفضه): ${duplicates}\n` +
+                        `⚠️ ناقص بيانات: ${missing}`
+                    );
+
+                    fetchDataFromCloud();
+
+                } catch (err) {
+                    console.error(err);
+                    showLoader(false);
+                    alert("خطأ في معالجة الملف: " + err.message);
+                } finally {
+                    input.value = '';
                 }
-                if(toAdd.length) { await db.from('invoices').insert(toAdd); alert(`تم استيراد ${toAdd.length}`); fetchDataFromCloud(); }
-                else alert("لا توجد بيانات مطابقة لشرط L");
             };
+
             reader.readAsArrayBuffer(file);
         }
 
-        async function checkConnection() { if (!SUPABASE_URL.includes('http')) return alert("⚠️ الروابط ناقصة!"); try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); await db.from('users').select('count', { count: 'exact', head: true }); document.getElementById('connectionStatus').innerText="✅ متصل"; document.getElementById('loginBtn').disabled=false; document.getElementById('loginBtn').classList.replace('bg-gray-600','bg-orange-600'); document.getElementById('loginBtn').classList.remove('cursor-not-allowed'); document.getElementById('loginBtn').textContent="دخول"; } catch(e){ showError("فشل الاتصال"); } }
-        function showLoader(b){ document.getElementById('globalLoader').classList.toggle('hidden',!b); }
-        function showError(m){ document.getElementById('errorMsg').textContent=m; document.getElementById('errorMsg').classList.remove('hidden'); }
-        function handleEnter(e,n){ if(e.key==='Enter') document.getElementById(n).focus(); }
-        function togglePin(){ const p=document.getElementById('loginPin'); p.type=p.type==='password'?'text':'password'; }
-        async function toggleFlash() { if(stream) { const t=stream.getVideoTracks()[0]; await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } }
+        // --- 5. OCR Logic (Smart V72) ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        async function toggleFlash() { if(stream){ const t=stream.getVideoTracks()[0]; const c=t.getCapabilities(); if(c.torch) { await t.applyConstraints({advanced:[{torch:!t.getSettings().torch}]}); } } }
+        function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
+        async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
+        async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        
+        // V72 Logic
+        function extractData(text) { 
+            const lines = text.split('\n'); 
+            let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
+            const fm = text.match(/\b[0O]{2}\d{5,}[1L]?\b/i); 
+            if (fm) { 
+                let raw = fm[0].replace(/O/gi, '0').replace(/1$/, 'L');
+                if (!raw.toUpperCase().endsWith('L')) raw += 'L';
+                d.file = raw.toUpperCase();
+            } 
+            if (d.file) { 
+                const l = lines.find(line => line.includes(fm[0])); 
+                if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|Inv|Invoice|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
+            } 
+            const invMatch = text.match(/\b([0OA-Z]{2})[-_ ]+([0-9]+[A-Z]?)\b/);
+            if (invMatch) {
+                let prefix = invMatch[1].toUpperCase();
+                if(prefix.startsWith('0')) prefix = 'O' + prefix[1];
+                if(prefix === '00' || prefix === '0O') prefix = 'OO';
+                d.inv = `${prefix}-${invMatch[2]}`;
+            }
+            for (let l of lines) { 
+                let c = l.toLowerCase(); 
+                if (c.includes('birth')||c.includes('dob')||c.includes('gender')) continue; 
+                const m = l.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
+                if (m) {
+                    const yearStr = m[0].match(/\d{4}/);
+                    if(yearStr && parseInt(yearStr[0]) >= 2025) {
+                        d.date = m[0].replace(/[\s/.]/g, '-');
+                        break; 
+                    }
+                }
+            } 
+            if(!d.date) { const m2 = text.match(/(\d{1,2}[-_. ]*[A-Za-z]{3}[-_. ]*\d{4})/); if(m2) d.date = m2[0]; } 
+            
+            if (d.file && (d.inv || d.date)) d.isValid = true; 
+            return d; 
+        }
+        function fillForm(d) { document.getElementById('fileNo').value=d.file; document.getElementById('pName').value=d.name; document.getElementById('pDate').value=d.date; document.getElementById('invNo').value=d.inv; }
+        
+        async function fetchDataFromCloud() {
+            showLoader(true);
+            const { data, error } = await db.from('invoices')
+                .select('*')
+                .or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`)
+                .order('id', { ascending: true });
+            
+            showLoader(false);
+            if(error) console.warn(error); 
+            employeeData = data || [];
+            renderTable();
+        }
+
+        async function deleteFromCloud(id) { if(confirm("حذف؟")) { const { error } = await db.from('invoices').delete().eq('id', id); if(!error) { employeeData = employeeData.filter(i => i.id !== id); renderTable(); } } }
+
+        function selectCardType(v) { currentCardValue = String(v); if(v == '100') currentCommission = 5; else if(v == '200') currentCommission = 10; else if(v == '500') currentCommission = 15; document.getElementById('currentCategoryBadge').textContent=`فئة: ${v}`; document.getElementById('cardModal').classList.add('hidden'); document.getElementById('mainContent').classList.remove('hidden'); document.getElementById('displayEmployeeName').textContent = currentFullName; document.getElementById('cardNo').focus(); }
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
+        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ const displayName=user.full_name?user.full_name:'-'; tbody.innerHTML+=`<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono tracking-wider">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3 flex justify-center gap-2"><button onclick="resetUserPin('${user.id}')" class="text-yellow-500"><i class="fa-solid fa-key"></i></button><button onclick="deleteUser('${user.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
+        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const fullName=document.getElementById('newFullName').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("مطلوب"); const {error}=await db.from('users').insert([{username:name,full_name:fullName,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); document.getElementById('newUsername').value=''; document.getElementById('newFullName').value=''; document.getElementById('newPin').value=''; } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
+        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
+        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
         function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
+        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
+        async function checkConnection() { const statusDiv = document.getElementById('connectionStatus'); const loginBtn = document.getElementById('loginBtn'); if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE')) { showError("⚠️ خطأ: الروابط ناقصة!"); return; } try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); const { count, error } = await db.from('users').select('*', { count: 'exact', head: true }); if (error) throw error; statusDiv.innerHTML = "<span class='text-green-400'>✅ متصل</span>"; loginBtn.disabled = false; loginBtn.classList.replace('bg-gray-600', 'bg-orange-600'); loginBtn.classList.replace('text-gray-400', 'text-white'); loginBtn.classList.replace('cursor-not-allowed', 'hover:bg-orange-500'); loginBtn.textContent = "دخول 🔐"; } catch (err) { showError("فشل: " + err.message); } }
         function clearInputs() { ['cardNo','fileNo','pName','pDate','invNo'].forEach(id=>document.getElementById(id).value=''); document.getElementById('cardNo').focus(); }
-        function renderTable() { const tbody=document.getElementById('tbody'); tbody.innerHTML=''; let total=0; employeeData.forEach((r,i)=>{ total+=r.profit; tbody.innerHTML+=`<tr class="hover:bg-gray-50"><td class="p-3">${i+1}</td><td>${r.card_no}</td><td>${r.patient_name}</td><td>${r.file_no}</td><td>${r.inv_no}</td><td>${r.inv_date}</td><td>${r.remark}</td><td class="text-green-600 font-bold">${r.profit}</td><td><button onclick="deleteFromCloud(${r.id})" class="text-red-500">🗑</button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent=`${total} ريال`; }
+        function showLoader(show) { document.getElementById('globalLoader').classList.toggle('hidden', !show); }
+        function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.remove('hidden'); }
+        function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
+        async function resetUserPin(id) { const newP = prompt("الرقم الجديد:"); if(newP) { await db.from('users').update({pin: newP}).eq('id', id); loadAllUsers(); alert("تم"); } }
+        function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
     </script>
 </body>
 </html>
+
