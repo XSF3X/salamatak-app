@@ -2,18 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-
-    <!-- iPhone WebApp Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="سلامتك">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icon.png">
-
-    <!-- Keep this (do NOT delete) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>سلامتك</title>
-
+    <title>سلامتك (المعدلة والمحمية)</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,12 +29,15 @@
         .card-select:hover { transform: translateY(-5px); border-color: #f59e0b; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .card-select img { border-radius: 8px; width: 100%; height: auto; }
         input:focus { outline: none; border-color: #f59e0b; ring: 2px; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+        
         .camera-container { position: relative; width: 100%; height: 350px; background: #000; border-radius: 16px; overflow: hidden; border: 4px solid #ef4444; transition: border-color 0.3s ease; }
         .camera-container.success { border-color: #10b981; box-shadow: 0 0 25px #10b981; }
         video { width: 100%; height: 100%; object-fit: cover; }
+        
         .scan-box { position: absolute; top: 20%; left: 10%; right: 10%; bottom: 20%; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 10; pointer-events: none; }
         .scan-line { position: absolute; top: 20%; left: 10%; right: 10%; height: 2px; background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: scan 2s infinite linear; display: none; z-index: 11; }
         .scanning .scan-line { display: block; }
+        
         #globalLoader { z-index: 100; background: rgba(0,0,0,0.95); }
         @keyframes scan { 0% { top: 20%; opacity: 0; } 50% { opacity: 1; } 100% { top: 80%; opacity: 0; } }
     </style>
@@ -143,7 +141,6 @@
                 <div id="cameraBox" class="camera-container scanning mb-4 shadow-2xl bg-black relative">
                     <video id="video" autoplay playsinline muted></video>
                     <img id="imagePreview" class="w-full h-full object-contain hidden bg-black absolute top-0 left-0 z-20">
-                    
                     <div class="scan-box"></div> 
                     <div class="scan-line"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-3 bg-black/60 text-center font-bold text-white backdrop-blur-sm z-30" id="statusText">جاهز للمسح...</div>
@@ -170,12 +167,12 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div><label class="text-[10px] font-bold text-gray-400">المريض</label><input type="text" id="pName" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-bold text-sm text-gray-200 focus:bg-gray-900 transition"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-sm text-blue-300 focus:bg-gray-900 transition"></div>
-                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-red-400 text-sm focus:bg-gray-900 transition"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">الملف</label><input type="text" id="fileNo" placeholder="ينتهي بـ L" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-sm text-blue-300 focus:bg-gray-900 transition"></div>
+                    <div><label class="text-[10px] font-bold text-gray-400">الفاتورة</label><input type="text" id="invNo" placeholder="ينتهي بـ L" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-red-400 text-sm focus:bg-gray-900 transition"></div>
                     <div class="relative">
                         <label class="text-[10px] font-bold text-gray-400">التاريخ</label>
                         <div class="flex items-center">
-                            <input type="text" id="pDate" class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-green-400 text-sm pl-8 focus:bg-gray-900 transition">
+                            <input type="text" id="pDate" placeholder="2025..." class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg font-mono font-bold text-green-400 text-sm pl-8 focus:bg-gray-900 transition">
                             <button onclick="document.getElementById('datePickerHidden').showPicker()" class="absolute left-2 text-gray-400 hover:text-white top-7"><i class="fa-solid fa-calendar-days text-lg"></i></button>
                             <input type="date" id="datePickerHidden" class="absolute opacity-0 bottom-0 left-0 w-0 h-0" onchange="updateDateFromPicker()">
                         </div>
@@ -236,23 +233,38 @@
         let stream = null, isScanning = false, scanInterval = null;
         const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); const cameraBox = document.getElementById('cameraBox');
 
-        // --- 1. Login ---
+        // --- 1. Login Logic (Modified for Robustness) ---
         async function loginSystem() {
             const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim();
             if(!name || !pin) return showError("بيانات ناقصة");
+            
             showLoader(true);
-            const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
-            showLoader(false);
-            if (error || !data) showError("❌ خطأ في الاسم أو الرقم السري");
-            else { 
-                currentUser = data.username; currentRole = data.role; currentFullName = data.full_name;
-                if (!currentFullName) { alert("⚠️ تنبيه: اسمك الكامل غير مسجل!"); }
-                enterSystem(); 
+            try {
+                const { data, error } = await db.from('users').select('*').eq('username', name).eq('pin', pin).maybeSingle();
+                
+                showLoader(false);
+                if (error || !data) return showError("❌ خطأ في الاسم أو الرقم السري");
+                
+                // Fallback if full_name is missing (Don't block login, just warn)
+                if (!data.full_name) {
+                    alert("⚠️ تنبيه: اسمك الكامل غير مسجل! سيتم استخدام رقمك الوظيفي مؤقتاً.");
+                    currentFullName = data.username;
+                } else {
+                    currentFullName = data.full_name;
+                }
+                
+                currentUser = data.username; 
+                currentRole = data.role; 
+                
+                enterSystem();
+            } catch (err) {
+                showLoader(false);
+                showError("خطأ في الاتصال: " + err.message);
             }
         }
 
         function enterSystem() {
-            document.getElementById('displayEmployeeName').textContent = currentFullName || currentUser;
+            document.getElementById('displayEmployeeName').textContent = currentFullName;
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('cardModal').classList.remove('hidden');
             if(currentRole === 'admin') document.getElementById('adminBtn').classList.remove('hidden');
@@ -269,7 +281,7 @@
             else { alert("✅ تم التصحيح!"); await fetchDataFromCloud(); }
         }
 
-        // --- 3. Save Entry with Validation ---
+        // --- 3. Save Entry (STRICT YEAR+L CHECK) ---
         async function saveEntryToCloud() {
             const manualCardNo = document.getElementById('cardNo').value.trim();
             const pName = document.getElementById('pName').value.trim();
@@ -278,42 +290,36 @@
             const pDate = document.getElementById('pDate').value.trim();
 
             if (!manualCardNo || !pName || !fileNo || !invNo || !pDate) {
-                return alert("⚠️ تنبيه: لا يمكن الحفظ!\nجميع الخانات مطلوبة.");
+                return alert("⚠️ تنبيه: جميع الخانات مطلوبة.");
             }
-            
-            // 🔥 Strict Validation: Ends with digit + L 🔥
-            // This regex checks if it ends with exactly two digits then L (e.g. 25L)
-            // It ignores everything before that.
-            const yearLRegex = /\d{2}L$/i;
+
+            // 🔥 الشرط الصارم: يجب أن ينتهي بـ رقمين + L (للملف والفاتورة) 🔥
+            const yearLRegex = /\d{2}L$/i; // Ends with 2 digits and L (case insensitive)
 
             if(!yearLRegex.test(fileNo)) {
-                 return alert(`⚠️ رقم الملف (${fileNo}) غير صحيح!\nيجب أن ينتهي برقم السنة + L (مثال: 25L)`);
+                return alert(`⚠️ خطأ في رقم الملف (${fileNo})!\nيجب أن ينتهي برقم السنة + L (مثال: 25L)`);
             }
             if(!yearLRegex.test(invNo)) {
-                 return alert(`⚠️ رقم الفاتورة (${invNo}) غير صحيح!\nيجب أن ينتهي برقم السنة + L (مثال: 25L)`);
-            }
-
-            // --- Format Date with Time (AM/PM) ---
-            // If date is "2025-12-09", we add current time.
-            let finalDate = pDate;
-            if(pDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                const now = new Date();
-                let hours = now.getHours();
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const ampm = hours >= 12 ? 'PM' : 'AM';
-                hours = hours % 12;
-                hours = hours ? hours : 12; 
-                finalDate = `${pDate} ${hours}:${minutes} ${ampm}`;
+                return alert(`⚠️ خطأ في رقم الفاتورة (${invNo})!\nيجب أن ينتهي برقم السنة + L (مثال: 25L)`);
             }
 
             // Check Date Year >= 2025
+            let finalDate = pDate;
+            if(pDate.match(/^\d{4}-\d{2}-\d{2}$/)) { // Add time if missing
+                const now = new Date();
+                finalDate = `${pDate} ${now.getHours()}:${now.getMinutes()}`;
+            }
             const yearCheck = new Date(finalDate).getFullYear();
             if(yearCheck < 2025) {
                  return alert("⚠️ التاريخ قديم! يجب أن يكون 2025 أو أحدث.");
             }
 
             showLoader(true);
-            const { data: existing } = await db.from('invoices').select('id').eq('employee_name', currentFullName).eq('card_no', manualCardNo).maybeSingle();
+            // Check Duplicates (using name AND id fallback)
+            const { data: existing } = await db.from('invoices').select('id')
+                .or(`employee_name.eq.${currentFullName},employee_name.eq.${currentUser}`)
+                .eq('card_no', manualCardNo).maybeSingle();
+                
             if(existing) { showLoader(false); return alert("❌ البطاقة مكررة!"); }
 
             const entry = { employee_name: currentFullName, employee_id: currentUser, card_no: manualCardNo, patient_name: pName, file_no: fileNo, inv_no: invNo, inv_date: finalDate, remark: currentCardValue, profit: currentCommission };
@@ -323,12 +329,12 @@
             else { alert("✅ تم الحفظ!"); if(data) employeeData.push(data[0]); renderTable(); clearInputs(); }
         }
 
-        // --- 4. Smart Import (Strict & Report) ---
+        // --- 4. Smart Import (Strict) ---
         async function smartImport(input) {
             const file = input.files[0];
             if (!file) return;
 
-            if(!confirm("سيتم استيراد البيانات المكتملة فقط. موافق؟")) { input.value = ''; return; }
+            if(!confirm("سيتم استيراد البيانات المكتملة (المنتهية بـ L فقط). موافق؟")) { input.value = ''; return; }
 
             showLoader(true);
             const reader = new FileReader();
@@ -342,6 +348,7 @@
                     const { data: existingCards } = await db.from('invoices').select('card_no').eq('employee_name', currentFullName);
                     const existingSet = new Set(existingCards ? existingCards.map(i => String(i.card_no).trim()) : []);
 
+                    // Header Logic
                     let headerRowIndex = -1;
                     for(let i=0; i<Math.min(20, jsonData.length); i++) {
                         const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
@@ -349,15 +356,14 @@
                             headerRowIndex = i; break; 
                         }
                     }
-
-                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     
+                    // Column Mapping
+                    let colMap = { card: -1, name: -1, file: -1, inv: -1, date: -1, remark: -1, profit: -1 };
                     if(headerRowIndex > -1) {
                          const header = jsonData[headerRowIndex].map(h => String(h).toUpperCase().trim());
                          header.forEach((h, idx) => {
                             if(h.includes("CARD")) colMap.card = idx;
-                            if(h.includes("PATIENT")) colMap.name = idx;
-                            else if(h.includes("NAME") && !h.includes("EMP") && !h.includes("USER") && colMap.name === -1) colMap.name = idx;
+                            if(h.includes("PATIENT") || (h.includes("NAME") && !h.includes("EMP"))) colMap.name = idx;
                             if(h.includes("FILE")) colMap.file = idx;
                             if(h.includes("INV")) colMap.inv = idx;
                             if(h.includes("DATE")) colMap.date = idx;
@@ -368,10 +374,8 @@
 
                     const entriesToUpload = [];
                     const startRow = headerRowIndex !== -1 ? headerRowIndex + 1 : 0;
-                    let skippedCount = 0;
-                    let duplicatesCount = 0;
-                    let successCount = 0;
-                    const yearLRegex = /\d{2}L$/i; // Strict Check for Import
+                    let skippedCount = 0; let duplicatesCount = 0; let successCount = 0;
+                    const yearLRegex = /\d{2}L$/i; // Strict Import Filter
 
                     for (let i = startRow; i < jsonData.length; i++) {
                         const row = jsonData[i];
@@ -382,21 +386,34 @@
                             remark: '100', profit: 5, card_no: '', patient_name: '', file_no: '', inv_no: '', inv_date: '' 
                         };
                         
-                        Object.values(row).forEach(v => {
-                            let s = String(v).trim();
-                            if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
-                            else if(s.endsWith('L')) entry.file_no = s;
-                            else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
-                            else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
-                            else if(s.length > 2 && !/\d/.test(s) && !['100','200','500'].includes(s) && !s.includes('-')) entry.patient_name = s;
-                            else if(['100','200','500'].includes(s)) {
-                                entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5);
+                        if(headerRowIndex > -1) {
+                            if(colMap.card > -1) entry.card_no = String(row[colMap.card] || '').trim();
+                            if(colMap.name > -1) entry.patient_name = String(row[colMap.name] || '').trim();
+                            if(colMap.file > -1) entry.file_no = String(row[colMap.file] || '').trim();
+                            if(colMap.inv > -1)  entry.inv_no = String(row[colMap.inv] || '').trim();
+                            if(colMap.date > -1) {
+                                let dVal = row[colMap.date];
+                                if (dVal instanceof Date) entry.inv_date = dVal.toLocaleDateString('en-GB'); 
+                                else entry.inv_date = String(dVal || '').trim();
                             }
-                        });
+                            if(colMap.remark > -1) entry.remark = String(row[colMap.remark] || '100').trim();
+                            if(colMap.profit > -1) entry.profit = row[colMap.profit];
+                        } else {
+                            // Fallback
+                            Object.values(row).forEach(v => {
+                                let s = String(v).trim();
+                                if(/^\d{4,}$/.test(s) && !['100','200','500'].includes(s)) entry.card_no = s;
+                                else if(s.endsWith('L')) entry.file_no = s;
+                                else if((s.includes('-')||s.includes('CSH')) && /\d/.test(s)) entry.inv_no = s.replace('CSH/','');
+                                else if(s.match(/\d{2,4}[-/]\d{1,2}[-/]\d{2,4}/)) entry.inv_date = s;
+                                else if(s.length > 2 && !/\d/.test(s) && !s.match(/CASH|CREDIT/i)) entry.patient_name = s;
+                                else if(['100','200','500'].includes(s)) { entry.remark = s; entry.profit = s==='500'?15 : (s==='200'?10 : 5); }
+                            });
+                        }
 
                         if (!entry.profit || entry.profit == 0) entry.profit = (entry.remark === '500' ? 15 : (entry.remark === '200' ? 10 : 5));
 
-                        // Strict Filter: Empty or Wrong Format
+                        // Strict Filtering
                         if (!entry.card_no || !entry.patient_name || !entry.inv_date || 
                             !yearLRegex.test(entry.file_no) || !yearLRegex.test(entry.inv_no)) {
                             skippedCount++; continue; 
@@ -415,11 +432,11 @@
                         const { error } = await db.from('invoices').insert(entriesToUpload);
                         if(error) alert("خطأ: " + error.message);
                         else { 
-                            alert(`📊 تقرير الاستيراد:\n✅ تم إضافة: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص/صيغة خطأ: ${skippedCount}`); 
+                            alert(`📊 تقرير:\n✅ مضاف: ${successCount}\n🚫 مكرر: ${duplicatesCount}\n⚠️ مرفوض (صيغة خطأ): ${skippedCount}`); 
                             await fetchDataFromCloud(); 
                         }
                     } else {
-                        alert(`❌ لم يتم استيراد أي بيانات!\n🚫 مكرر: ${duplicatesCount}\n⚠️ ناقص/صيغة خطأ: ${skippedCount}`);
+                        alert(`❌ لم يتم الاستيراد!\n🚫 مكرر: ${duplicatesCount}\n⚠️ صيغة خطأ/ناقص: ${skippedCount}`);
                     }
 
                 } catch (err) { console.error(err); alert("خطأ: " + err.message); } finally { showLoader(false); input.value = ''; }
@@ -427,26 +444,25 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 5. OCR Logic (Smart V74) ---
-        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); document.getElementById('restartScanBtn').classList.add('hidden'); document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جارٍ المسح...</span>"; stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ كاميرا: " + e.message); } }
+        // --- 5. OCR Logic (Smart Correction: 1 -> L) ---
+        async function startLiveScan() { try { document.getElementById('imagePreview').classList.add('hidden'); video.classList.remove('hidden'); cameraBox.classList.remove('success'); cameraBox.classList.add('scanning'); document.getElementById('restartScanBtn').classList.add('hidden'); document.getElementById('statusText').innerHTML = "<span class='text-gray-300'>جارٍ المسح...</span>"; stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); video.srcObject = stream; video.play(); const t = stream.getVideoTracks()[0]; if(t.getCapabilities().torch) document.getElementById('flashBtn').classList.remove('hidden'); isScanning = true; scanInterval = setInterval(processFrame, 1500); } catch (e) { alert("خطأ: " + e.message); } }
         function restartScan() { startLiveScan(); }
         function stopCamera() { if(stream)stream.getTracks().forEach(t=>t.stop()); clearInterval(scanInterval); isScanning=false; }
         async function processFrame() { if(!isScanning)return; const ctx=canvas.getContext('2d'); canvas.width=video.videoWidth; canvas.height=video.videoHeight; ctx.drawImage(video,0,0); canvas.toBlob(b=>runOCR(b,true),'image/jpeg',0.8); }
         async function handleFile(i) { const f=i.files[0]; if(!f)return; stopCamera(); video.classList.add('hidden'); document.getElementById('imagePreview').classList.remove('hidden'); if(f.type==="application/pdf"){ const d=await f.arrayBuffer(); const p=await pdfjsLib.getDocument({data:d}).promise; const pg=await p.getPage(1); const vp=pg.getViewport({scale:2.0}); canvas.width=vp.width; canvas.height=vp.height; await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise; document.getElementById('imagePreview').src=canvas.toDataURL(); canvas.toBlob(b=>runOCR(b,false)); } else { document.getElementById('imagePreview').src=URL.createObjectURL(f); runOCR(f,false); } }
-        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>"; document.getElementById('restartScanBtn').classList.remove('hidden'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح"); } }); }
+        function runOCR(b,l) { Tesseract.recognize(b,'eng',{logger:m=>{}}).then(({data:{text}})=>{ const d=extractData(text); if(l){ if(d.isValid){ stopCamera(); cameraBox.classList.remove('scanning'); cameraBox.classList.add('success'); document.getElementById('statusText').innerHTML = "<span class='text-green-400'>✔️ تم الالتقاط</span>"; document.getElementById('restartScanBtn').classList.remove('hidden'); fillForm(d); } } else { fillForm(d); if(!d.isValid) alert("غير واضح أو الصيغة غير مطابقة"); } }); }
         
-        // 🔥 OCR Extraction Logic V74 (Strict L + Auto Correct) 🔥
+        // 🔥 OCR Extraction with Auto-Correct (1 -> L) 🔥
         function extractData(text) { 
             const lines = text.split('\n'); 
             let d = { file: '', name: '', date: '', inv: '', isValid: false }; 
             
-            // 1. File No: Must end with 2 digits + L (Corrects 1 to L)
+            // 1. File No (Corrects 1 to L at end)
             const fm = text.match(/\b[0O]{2}\d{5,}\d+[0-9L]\b/i); 
             if (fm) { 
                 let raw = fm[0].replace(/O/gi, '0');
                 if (raw.endsWith('1')) raw = raw.slice(0, -1) + 'L'; 
-                if (!raw.endsWith('L')) raw += 'L'; // Force L if regex caught something close
-                
+                if (!raw.endsWith('L')) raw += 'L'; // Enforce L
                 d.file = raw.toUpperCase();
             } 
             
@@ -456,7 +472,7 @@
                 if (l) d.name = l.replace(fm[0], '').replace(/Gender|Male|Female|Date|Birth|ID|File|No|CASH|CREDIT|\d/gi, '').replace(/[^\w\s]/g, '').trim(); 
             } 
             
-            // 3. Invoice: End with digits + L
+            // 3. Invoice (Corrects 1 to L at end)
             const invMatch = text.match(/\b([A-Z0-9]{2})[-_ ]+(\d+)[0-9L]?\b/i);
             if (invMatch) {
                  let prefix = invMatch[1].toUpperCase();
@@ -470,25 +486,19 @@
                  d.inv = `${prefix}-${number.toUpperCase()}`;
             }
 
-            // 4. Date (2025+ Filter)
+            // 4. Date (2025+)
             for (let l of lines) { 
-                let c = l.toLowerCase(); 
-                if (c.includes('birth')||c.includes('dob')||c.includes('gender')) continue; 
+                if (l.toLowerCase().includes('birth')) continue; 
                 const m = l.match(/(\d{1,2}[-_. /]*[A-Za-z]{3}[-_. /]*\d{4})/) || l.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{4})/);
                 if (m) {
                     const yearStr = m[0].match(/\d{4}/);
                     if(yearStr && parseInt(yearStr[0]) >= 2025) {
-                        // Format with time if available in line, else just date
-                        let time = "";
-                        const timeM = l.match(/(\d{1,2}:\d{2})\s*(am|pm)?/i);
-                        if(timeM) time = ` ${timeM[0]}`;
-                        d.date = m[0].replace(/[\s/.]/g, '-') + time; 
-                        break; 
+                        d.date = m[0].replace(/[\s/.]/g, '-'); break; 
                     }
                 } 
             } 
             
-            // Triple Check
+            // Triple Check + L Check
             if (d.file && d.inv && d.date && d.file.endsWith('L') && d.inv.endsWith('L')) d.isValid = true; 
             return d; 
         }
@@ -502,6 +512,14 @@
         function togglePin() { const p = document.getElementById('loginPin'); const i = document.getElementById('eyeIcon'); if(p.type==='password'){p.type='text';i.classList.replace('fa-eye','fa-eye-slash');}else{p.type='password';i.classList.replace('fa-eye-slash','fa-eye');} }
         async function resetUserPin(id) { const newP = prompt("الرقم الجديد:"); if(newP) { await db.from('users').update({pin: newP}).eq('id', id); loadAllUsers(); alert("تم"); } }
         function renderTable() { const tbody = document.getElementById('tbody'); tbody.innerHTML = ''; let total = 0; employeeData.forEach((row, i) => { total += parseFloat(row.profit||0); tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b transition"><td class="p-3 bg-gray-100 font-bold">${i+1}</td><td class="p-3 font-mono font-bold">${row.card_no}</td><td class="p-3">${row.patient_name}</td><td class="p-3 font-mono text-blue-600 text-xs">${row.file_no}</td><td class="p-3 font-mono text-red-500 text-xs">${row.inv_no}</td><td class="p-3 font-mono text-xs">${row.inv_date}</td><td class="p-3 font-bold">${row.remark}</td><td class="p-3 font-bold text-green-600">+${row.profit}</td><td class="p-3"><button onclick="deleteFromCloud(${row.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); document.getElementById('totalProfitDisplay').textContent = `${total} ريال`; }
+        function exportXLS() { if(!employeeData.length) return alert("فارغ"); const header = ["SN", "CARD NO", "PATIENT NAME", "FILE NO.", "INV. NO.", "DATE", "REMARK", "PROFIT (SAR)"]; const data = employeeData.map((row, i) => ([ i + 1, row.card_no, row.patient_name, row.file_no, row.inv_no, row.inv_date, parseInt(row.remark), row.profit ])); const finalData = [[`سجل فواتير الموظف: ${currentFullName}`], [], header, ...data]; const ws = XLSX.utils.aoa_to_sheet(finalData); if(!ws['!merges']) ws['!merges'] = []; ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }]; const range = XLSX.utils.decode_range(ws['!ref']); for (let R = range.s.r; R <= range.e.r; ++R) { for (let C = range.s.c; C <= range.e.c; ++C) { const cell_address = XLSX.utils.encode_cell({r: R, c: C}); if (!ws[cell_address]) continue; if (R === 0) { ws[cell_address].s = { font: { sz: 18, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" } }; } else if (R === 2) { ws[cell_address].s = { font: { sz: 12, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "EA580C" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; } else if (R > 2) { let cellStyle = { font: { sz: 11 }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } }; if (C === 6) cellStyle.fill = { fgColor: { rgb: "FEF08A" } }; ws[cell_address].s = cellStyle; } } } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Sales"); XLSX.writeFile(wb, `ملف_${currentFullName}.xlsx`); }
+        function updateDateFromPicker() { document.getElementById('pDate').value = document.getElementById('datePickerHidden').value; }
+        function handleEnter(e, nextId) { if (e.key === 'Enter') { e.preventDefault(); if (nextId === 'loginBtn') { document.getElementById('loginBtn').click(); } else { document.getElementById(nextId).focus(); } } }
+        async function openAdminPanel() { document.getElementById('adminPanelModal').classList.remove('hidden'); loadAllUsers(); }
+        async function loadAllUsers() { const { data } = await db.from('users').select('*').order('id'); if(data){ const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=''; data.forEach(user=>{ const displayName=user.full_name?user.full_name:'-'; tbody.innerHTML+=`<tr class="hover:bg-gray-800 border-b border-gray-700"><td class="p-3 text-blue-300 font-bold">${user.username}</td><td class="p-3 text-white">${displayName}</td><td class="p-3 text-yellow-400 font-mono tracking-wider">${user.pin}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs ${user.role==='admin'?'bg-red-600':'bg-blue-600'} text-white">${user.role}</span></td><td class="p-3 flex justify-center gap-2"><button onclick="resetUserPin('${user.id}')" class="text-yellow-500"><i class="fa-solid fa-key"></i></button><button onclick="deleteUser('${user.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`; }); } }
+        async function addNewUser() { const name=document.getElementById('newUsername').value.trim(); const fullName=document.getElementById('newFullName').value.trim(); const pin=document.getElementById('newPin').value.trim(); const role=document.getElementById('newRole').value; if(!name||!pin)return alert("مطلوب"); const {error}=await db.from('users').insert([{username:name,full_name:fullName,pin:pin,role:role}]); if(error)alert(error.message); else { loadAllUsers(); alert("تم!"); document.getElementById('newUsername').value=''; document.getElementById('newFullName').value=''; document.getElementById('newPin').value=''; } }
+        async function deleteUser(id) { if(confirm("حذف؟")) { await db.from('users').delete().eq('id', id); loadAllUsers(); } }
+        async function submitChangePin() { const oldPin = document.getElementById('oldPinInput').value.trim(); const newPin = document.getElementById('newPinInput').value.trim(); if(!oldPin || !newPin) return alert("أدخل البيانات"); showLoader(true); const { data: userCheck } = await db.from('users').select('id').eq('username', currentUser).eq('pin', oldPin).maybeSingle(); if (!userCheck) { showLoader(false); return alert("❌ الرقم السري الحالي خطأ"); } const { error } = await db.from('users').update({ pin: newPin }).eq('id', userCheck.id); showLoader(false); if (error) alert("خطأ: " + error.message); else { alert("✅ تم تغيير الرقم السري"); document.getElementById('changePinModal').classList.add('hidden'); } }
     </script>
 </body>
 </html>
